@@ -23,6 +23,7 @@
       padding: 20px;
       border-radius: 8px;
       box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+      justify-content: space-between; /* Distribuye los contenedores */
     }
     input[type="text"] {
       flex: 1;
@@ -33,35 +34,21 @@
       width: 100%; /* Asegura que ocupe el espacio completo en móviles */
     }
     .input-container {
-      width: 50%; /* Mitad izquierda para inputs */
+      width: 45%; /* Mitad izquierda para inputs */
       padding-right: 5px;
     }
-.button-container {
-  width: 50%; /* Mitad derecha para botones predefinidos */
-  display: flex;
-  flex-direction: column;
-  justify-content: flex-start; /* Mantener botones apilados verticalmente */
-  align-items: flex-end; /* Alinea los botones a la derecha dentro del contenedor */
-  gap: 10px;
-  padding-left: 10px; /* Opcional: un poco de espacio para evitar que los botones toquen el borde */
-}
-
-@media (max-width: 600px) {
-  .input-container, .button-container {
-    width: 100%; /* En móviles, apila todo */
-  }
-  .button-container {
-    align-items: flex-end; /* Alinea a la derecha en móviles */
-    padding-left: 0; /* Elimina el padding adicional en móviles */
-  }
-  .save-export-container {
-    flex-direction: column;
-    align-items: flex-start;
-  }
-  button {
-    width: 100%; /* Asegura que botones ocupen todo el ancho en móviles */
-  }
-}
+    .button-container {
+      width: 45%; /* Mitad derecha para botones predefinidos */
+      display: flex;
+      flex-direction: column;
+      align-items: flex-end; /* Alinea los botones a la derecha */
+      gap: 10px;
+    }
+    .button-container button {
+      width: auto; /* Botones solo toman el ancho necesario */
+      min-width: 120px; /* Ancho mínimo para consistencia */
+      padding: 10px 20px; /* Padding más compacto */
+    }
     .save-export-container {
       width: 100%;
       display: flex;
@@ -70,7 +57,7 @@
       margin-top: 10px;
     }
     button {
-      padding: 15px 30px; /* Ajustado para móviles */
+      padding: 15px 30px; /* Mantenemos para botones de guardar/exportar */
       border: none;
       border-radius: 8px;
       background-color: #3498db;
@@ -78,7 +65,6 @@
       cursor: pointer;
       font-size: 16px;
       transition: background-color 0.2s;
-      width: 100%; /* Ancho completo para botones en móviles */
     }
     button:hover {
       background-color: #2980b9;
@@ -134,12 +120,12 @@
       .button-container {
         align-items: flex-end; /* Alinea a la derecha en móviles */
       }
+      .button-container button {
+        width: 100%; /* Botones ocupan todo el ancho en móviles */
+      }
       .save-export-container {
         flex-direction: column;
         align-items: flex-start;
-      }
-      button {
-        width: 100%; /* Asegura que botones ocupen todo el ancho en móviles */
       }
     }
   </style>
