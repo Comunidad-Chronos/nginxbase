@@ -52,15 +52,14 @@
     .save-export-container {
       width: 100%;
       display: flex;
-      justify-content: flex-start; /* Alineación a la izquierda */
+      justify-content: space-between; /* Exportar a la derecha, Guardar a la izquierda */
       gap: 10px;
       margin-top: 10px;
     }
     button {
-      padding: 15px 30px; /* Mantenemos para botones de guardar/exportar */
+      padding: 15px 30px; /* Para botones de guardar/exportar */
       border: none;
       border-radius: 8px;
-      background-color: #3498db;
       color: white;
       cursor: pointer;
       font-size: 16px;
@@ -75,11 +74,17 @@
     button[type="button"]:hover {
       background-color: #6d7273;
     }
+    #saveBtn {
+      background-color: #2ecc71; /* Verde para Guardar */
+    }
+    #saveBtn:hover {
+      background-color: #27ae60;
+    }
     #exportBtn {
-      background-color: #2ecc71;
+      background-color: #34495e; /* Color neutro gris azulado */
     }
     #exportBtn:hover {
-      background-color: #27ae60;
+      background-color: #2c3e50;
     }
     .deleteRowBtn {
       background-color: #e74c3c;
@@ -135,16 +140,16 @@
   <form id="registroForm">
     <div class="input-container">
       <input type="text" id="precio" placeholder="Precio (ej. 4.37)" required>
-      <input type="text" id="motivo" placeholder="Motivo personalizado">
+      <input type="text" id="observaciones" placeholder="Observaciones personalizadas">
     </div>
     <div class="button-container">
       <button type="button" onclick="addRegistro('Peaje')">Peaje</button>
-      <button type="button" onclick="addRegistro('Gasolina')">Gasolina</button>
+      <button type="button" onclick="promptLitros()">Gasolina</button>
       <button type="button" onclick="addRegistro('Hospedaje')">Hospedaje</button>
       <button type="button" onclick="addRegistro('Comida')">Comida</button>
     </div>
     <div class="save-export-container">
-      <button type="button" onclick="addRegistro(document.getElementById('motivo').value)">Guardar</button>
+      <button id="saveBtn" type="button" onclick="addRegistro(document.getElementById('observaciones').value)">Guardar Motivo Personalizado</button>
       <button id="exportBtn" onclick="exportToCSV()">Exportar CSV</button>
     </div>
   </form>
@@ -153,7 +158,7 @@
       <tr>
         <th>Fecha y Hora</th>
         <th>Precio</th>
-        <th>Motivo</th>
+        <th>Observaciones</th>
         <th>Ubicación</th>
         <th>Acción</th>
       </tr>
@@ -174,10 +179,10 @@
       localStorage.setItem("registroParadas", tableData);
     }
 
-    async function addRegistro(motivo) {
+    async function addRegistro(observaciones) {
       const precio = document.getElementById("precio").value;
-      if (!precio || !motivo) {
-        alert("Por favor, completa el precio y el motivo.");
+      if (!precio || !observaciones) {
+        alert("Por favor, completa el precio y las observaciones.");
         return;
       }
 
@@ -210,11 +215,11 @@
             console.error("Error al obtener dirección:", err);
           }
 
-          const fila = `<tr><td>${fechaHora}</td><td>${precio}</td><td>${motivo}</td><td>${ubicacion}</td><td><button class="deleteRowBtn" onclick="this.parentElement.parentElement.remove();saveToStorage()">Eliminar</button></td></tr>`;
+          const fila = `<tr><td>${fechaHora}</td><td>${precio}</td><td>${observaciones}</td><td>${ubicacion}</td><td><button class="deleteRowBtn" onclick="this.parentElement.parentElement.remove();saveToStorage()">Eliminar</button></td></tr>`;
           document.getElementById("tablaDatos").innerHTML += fila;
 
           document.getElementById("precio").value = "";
-          document.getElementById("motivo").value = "";
+          document.getElementById("observaciones").value = "";
           saveToStorage();
         },
         err => {
@@ -228,9 +233,18 @@
       );
     }
 
+    function promptLitros() {
+      const litros = prompt("Introduce los litros de gasolina:");
+      if (litros !== null && !isNaN(litros) && litros.trim() !== "" && Number(litros) > 0) {
+        addRegistro(`Gasolina (${litros} litros)`);
+      } else if (litros !== null) {
+        alert("Por favor, introduce un número válido de litros.");
+      }
+    }
+
     function exportToCSV() {
       const rows = document.querySelectorAll("#tablaDatos tr");
-      let csvContent = "Fecha y Hora,Precio,Motivo,Ubicación\n";
+      let csvContent = "Fecha y Hora,Precio,Observaciones,Ubicación\n";
       rows.forEach(row => {
         const cells = row.querySelectorAll("td:not(:last-child)");
         const rowData = Array.from(cells).map(cell => `"${cell.textContent.replace(/"/g, '""')}"`).join(",");
