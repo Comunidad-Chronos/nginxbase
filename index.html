@@ -40,7 +40,8 @@
       width: 50%; /* Mitad derecha para botones predefinidos */
       display: flex;
       flex-direction: column;
-      align-items: flex-start; /* Alineación a la izquierda dentro de la derecha */
+      align-items: flex-end; /* Alineación a la derecha */
+      justify-content: flex-start;
       gap: 10px;
     }
     .save-export-container {
@@ -113,7 +114,7 @@
         width: 100%; /* En móviles, apila todo */
       }
       .button-container {
-        align-items: center; /* Centra botones en móviles */
+        align-items: flex-end; /* Alinea a la derecha en móviles */
       }
       .save-export-container {
         flex-direction: column;
