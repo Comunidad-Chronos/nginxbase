@@ -24,36 +24,42 @@
       border-radius: 8px;
       box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
     }
-    input[type="text"], input[type="file"] {
+    input[type="text"] {
       flex: 1;
       padding: 10px;
       border: 1px solid #ccc;
       border-radius: 4px;
       font-size: 16px;
+      width: 100%; /* Asegura que ocupe el espacio completo en móviles */
+    }
+    .input-container {
+      width: 50%; /* Mitad izquierda para inputs */
+      padding-right: 5px;
     }
     .button-container {
+      width: 50%; /* Mitad derecha para botones predefinidos */
       display: flex;
-      flex-direction: column; /* Disposición vertical */
-      align-items: flex-end; /* Alineación a la derecha */
+      flex-direction: column;
+      align-items: flex-start; /* Alineación a la izquierda dentro de la derecha */
       gap: 10px;
-      width: 100%;
     }
-    .save-button-container {
-      display: flex;
-      justify-content: flex-end; /* Alineación a la derecha */
+    .save-export-container {
       width: 100%;
+      display: flex;
+      justify-content: flex-start; /* Alineación a la izquierda */
+      gap: 10px;
       margin-top: 10px;
     }
     button {
-      padding: 25px 50px; /* Botones más grandes */
+      padding: 15px 30px; /* Ajustado para móviles */
       border: none;
       border-radius: 8px;
       background-color: #3498db;
       color: white;
       cursor: pointer;
-      font-size: 18px; /* Texto más grande */
+      font-size: 16px;
       transition: background-color 0.2s;
-      width: 200px; /* Ancho fijo para consistencia */
+      width: 100%; /* Ancho completo para botones en móviles */
     }
     button:hover {
       background-color: #2980b9;
@@ -64,18 +70,11 @@
     button[type="button"]:hover {
       background-color: #6d7273;
     }
-    #exportBtn, #loadCsvBtn, #deleteAllBtn {
+    #exportBtn {
       background-color: #2ecc71;
-      margin: 10px 5px;
     }
-    #exportBtn:hover, #loadCsvBtn:hover, #deleteAllBtn:hover {
+    #exportBtn:hover {
       background-color: #27ae60;
-    }
-    #deleteAllBtn {
-      background-color: #e74c3c;
-    }
-    #deleteAllBtn:hover {
-      background-color: #c0392b;
     }
     .deleteRowBtn {
       background-color: #e74c3c;
@@ -109,29 +108,41 @@
     tr:hover {
       background-color: #f1f1f1;
     }
+    @media (max-width: 600px) {
+      .input-container, .button-container {
+        width: 100%; /* En móviles, apila todo */
+      }
+      .button-container {
+        align-items: center; /* Centra botones en móviles */
+      }
+      .save-export-container {
+        flex-direction: column;
+        align-items: flex-start;
+      }
+      button {
+        width: 100%; /* Asegura que botones ocupen todo el ancho en móviles */
+      }
+    }
   </style>
 </head>
 <body>
   <h2>Registro de Paradas / Repostajes</h2>
   <form id="registroForm">
-    <input type="text" id="precio" placeholder="Precio (ej. 4.37)" required>
-    <input type="text" id="motivo" placeholder="Motivo personalizado">
-    <div class="save-button-container">
-      <button type="button" onclick="addRegistro(document.getElementById('motivo').value)">Guardar</button>
+    <div class="input-container">
+      <input type="text" id="precio" placeholder="Precio (ej. 4.37)" required>
+      <input type="text" id="motivo" placeholder="Motivo personalizado">
     </div>
     <div class="button-container">
       <button type="button" onclick="addRegistro('Peaje')">Peaje</button>
       <button type="button" onclick="addRegistro('Gasolina')">Gasolina</button>
-      <button type="button" onclick="addRegistro('Camping')">Hospedaje</button>
+      <button type="button" onclick="addRegistro('Hospedaje')">Hospedaje</button>
       <button type="button" onclick="addRegistro('Comida')">Comida</button>
     </div>
+    <div class="save-export-container">
+      <button type="button" onclick="addRegistro(document.getElementById('motivo').value)">Guardar</button>
+      <button id="exportBtn" onclick="exportToCSV()">Exportar CSV</button>
+    </div>
   </form>
-  <div>
-    <input type="file" id="csvFileInput" accept=".csv">
-    <button id="loadCsvBtn" onclick="loadFromCSV()">Cargar CSV</button>
-    <button id="exportBtn" onclick="exportToCSV()">Exportar a CSV</button>
-    <button id="deleteAllBtn" onclick="deleteAllRows()">Eliminar Todo</button>
-  </div>
   <table>
     <thead>
       <tr>
@@ -225,58 +236,6 @@
       link.href = URL.createObjectURL(blob);
       link.download = "registro_paradas.csv";
       link.click();
-    }
-
-    function loadFromCSV() {
-      const fileInput = document.getElementById("csvFileInput");
-      const file = fileInput.files[0];
-      if (!file) {
-        alert("Por favor, selecciona un archivo CSV.");
-        return;
-      }
-
-      if (!file.name.endsWith('.csv')) {
-        alert("El archivo seleccionado no es un CSV válido.");
-        return;
-      }
-
-      const reader = new FileReader();
-      reader.onload = function(e) {
-        try {
-          const text = e.target.result;
-          const rows = text.split(/\r?\n/).slice(1); // Saltar encabezado, manejar saltos de línea
-          let tableHTML = "";
-          rows.forEach(row => {
-            if (row.trim()) { // Ignorar filas vacías
-              // Manejar comas dentro de campos entrecomillados
-              const cols = row.match(/(?:[^,"]+|"[^"]*")+/g)?.map(col => col.replace(/^"|"$/g, "").replace(/""/g, "\"")) || [];
-              if (cols.length >= 4) {
-                tableHTML += `<tr><td>${cols[0]}</td><td>${cols[1]}</td><td>${cols[2]}</td><td>${cols[3]}</td><td><button class="deleteRowBtn" onclick="this.parentElement.parentElement.remove();saveToStorage()">Eliminar</button></td></tr>`;
-              }
-            }
-          });
-          if (tableHTML) {
-            document.getElementById("tablaDatos").innerHTML = tableHTML;
-            saveToStorage();
-            alert("Datos cargados correctamente desde el CSV.");
-          } else {
-            alert("El archivo CSV no contiene datos válidos o no sigue el formato esperado.");
-          }
-        } catch (err) {
-          alert("Error al procesar el archivo CSV: " + err.message);
-        }
-      };
-      reader.onerror = function() {
-        alert("Error al leer el archivo CSV.");
-      };
-      reader.readAsText(file);
-    }
-
-    function deleteAllRows() {
-      if (confirm("¿Estás seguro de que quieres eliminar todos los registros?")) {
-        document.getElementById("tablaDatos").innerHTML = "";
-        localStorage.removeItem("registroParadas");
-      }
     }
 
     window.onload = loadStoredData;
