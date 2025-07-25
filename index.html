@@ -31,14 +31,20 @@
       border-radius: 4px;
       font-size: 16px;
     }
+    .button-container {
+      display: flex;
+      justify-content: flex-end;
+      gap: 10px;
+      width: 100%;
+    }
     button {
-      padding: 20px 40px;
+      padding: 25px 50px; /* Botones más grandes */
       border: none;
       border-radius: 8px;
       background-color: #3498db;
       color: white;
       cursor: pointer;
-      font-size: 16px;
+      font-size: 18px; /* Texto más grande */
       transition: background-color 0.2s;
     }
     button:hover {
@@ -101,12 +107,14 @@
   <h2>Registro de Paradas / Repostajes</h2>
   <form id="registroForm">
     <input type="text" id="precio" placeholder="Precio (ej. 4.37)" required>
-    <button type="button" onclick="addRegistro('Peaje')">Peaje</button>
-    <button type="button" onclick="addRegistro('Gasolina')">Gasolina</button>
-    <button type="button" onclick="addRegistro('Camping')">Hospedaje</button>
-    <button type="button" onclick="addRegistro('Comida')">Comida</button>
     <input type="text" id="motivo" placeholder="Motivo personalizado">
-    <button type="button" onclick="addRegistro(document.getElementById('motivo').value)">Guardar</button>
+    <div class="button-container">
+      <button type="button" onclick="addRegistro('Peaje')">Peaje</button>
+      <button type="button" onclick="addRegistro('Gasolina')">Gasolina</button>
+      <button type="button" onclick="addRegistro('Camping')">Hospedaje</button>
+      <button type="button" onclick="addRegistro('Comida')">Comida</button>
+      <button type="button" onclick="addRegistro(document.getElementById('motivo').value)">Guardar</button>
+    </div>
   </form>
   <div>
     <input type="file" id="csvFileInput" accept=".csv">
