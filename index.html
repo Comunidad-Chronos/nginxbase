@@ -36,14 +36,32 @@
       width: 50%; /* Mitad izquierda para inputs */
       padding-right: 5px;
     }
-    .button-container {
-      width: 50%; /* Mitad derecha para botones predefinidos */
-      display: flex;
-      flex-direction: column;
-      align-items: flex-end; /* Alineación a la derecha */
-      justify-content: flex-start;
-      gap: 10px;
-    }
+.button-container {
+  width: 50%; /* Mitad derecha para botones predefinidos */
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-start; /* Mantener botones apilados verticalmente */
+  align-items: flex-end; /* Alinea los botones a la derecha dentro del contenedor */
+  gap: 10px;
+  padding-left: 10px; /* Opcional: un poco de espacio para evitar que los botones toquen el borde */
+}
+
+@media (max-width: 600px) {
+  .input-container, .button-container {
+    width: 100%; /* En móviles, apila todo */
+  }
+  .button-container {
+    align-items: flex-end; /* Alinea a la derecha en móviles */
+    padding-left: 0; /* Elimina el padding adicional en móviles */
+  }
+  .save-export-container {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+  button {
+    width: 100%; /* Asegura que botones ocupen todo el ancho en móviles */
+  }
+}
     .save-export-container {
       width: 100%;
       display: flex;
