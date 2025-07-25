@@ -1,76 +1,267 @@
-
 <!DOCTYPE html>
-<html lang="en">
-  <head>
-    <meta charset="utf-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
-    <meta name="description" content="">
-    <meta name="author" content="">
-    <link rel="icon" href="https://v4-alpha.getbootstrap.com/examples/starter-template/favicon.ico">
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>Registro de Paradas</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      max-width: 800px;
+      margin: 20px auto;
+      background-color: #f4f4f9;
+      color: #333;
+    }
+    h2 {
+      text-align: center;
+      color: #2c3e50;
+    }
+    form {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      background-color: #fff;
+      padding: 20px;
+      border-radius: 8px;
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+    }
+    input[type="text"], input[type="file"] {
+      flex: 1;
+      padding: 10px;
+      border: 1px solid #ccc;
+      border-radius: 4px;
+      font-size: 16px;
+    }
+    button {
+      padding: 10px 20px;
+      border: none;
+      border-radius: 4px;
+      background-color: #3498db;
+      color: white;
+      cursor: pointer;
+      font-size: 16px;
+      transition: background-color 0.2s;
+    }
+    button:hover {
+      background-color: #2980b9;
+    }
+    button[type="button"] {
+      background-color: #7f8c8d;
+    }
+    button[type="button"]:hover {
+      background-color: #6d7273;
+    }
+    #exportBtn, #loadCsvBtn, #deleteAllBtn {
+      background-color: #2ecc71;
+      margin: 10px 5px;
+    }
+    #exportBtn:hover, #loadCsvBtn:hover, #deleteAllBtn:hover {
+      background-color: #27ae60;
+    }
+    #deleteAllBtn {
+      background-color: #e74c3c;
+    }
+    #deleteAllBtn:hover {
+      background-color: #c0392b;
+    }
+    .deleteRowBtn {
+      background-color: #e74c3c;
+      padding: 8px;
+      font-size: 14px;
+    }
+    .deleteRowBtn:hover {
+      background-color: #c0392b;
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 20px;
+      background-color: #fff;
+      border-radius: 8px;
+      overflow: hidden;
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+    }
+    th, td {
+      padding: 12px;
+      text-align: left;
+      border-bottom: 1px solid #ddd;
+    }
+    th {
+      background-color: #3498db;
+      color: white;
+    }
+    tr:nth-child(even) {
+      background-color: #f9f9f9;
+    }
+    tr:hover {
+      background-color: #f1f1f1;
+    }
+  </style>
+</head>
+<body>
+  <h2>Registro de Paradas / Repostajes</h2>
+  <form id="registroForm">
+    <input type="text" id="precio" placeholder="Precio (ej. 4.37)" required>
+    <button type="button" onclick="addRegistro('Peaje')">Peaje</button>
+    <button type="button" onclick="addRegistro('Gasolina')">Gasolina</button>
+    <button type="button" onclick="addRegistro('Camping')">Camping</button>
+    <button type="button" onclick="addRegistro('Comida')">Comida</button>
+    <input type="text" id="motivo" placeholder="Motivo personalizado">
+    <button type="button" onclick="addRegistro(document.getElementById('motivo').value)">Guardar</button>
+  </form>
+  <div>
+    <input type="file" id="csvFileInput" accept=".csv">
+    <button id="loadCsvBtn" onclick="loadFromCSV()">Cargar CSV</button>
+    <button id="exportBtn" onclick="exportToCSV()">Exportar a CSV</button>
+    <button id="deleteAllBtn" onclick="deleteAllRows()">Eliminar Todo</button>
+  </div>
+  <table>
+    <thead>
+      <tr>
+        <th>Fecha y Hora</th>
+        <th>Precio</th>
+        <th>Motivo</th>
+        <th>Ubicación</th>
+        <th>Acción</th>
+      </tr>
+    </thead>
+    <tbody id="tablaDatos"></tbody>
+  </table>
 
-    <title>Starter Template for Bootstrap</title>
-    <link rel="canonical" href="https://getbootstrap.com/docs/4.0/examples/starter-template/">
+  <script>
+    function loadStoredData() {
+      const storedData = localStorage.getItem("registroParadas");
+      if (storedData) {
+        document.getElementById("tablaDatos").innerHTML = storedData;
+      }
+    }
 
-    <!-- Bootstrap core CSS -->
-    <link href="https://v4-alpha.getbootstrap.com/dist/css/bootstrap.min.css" rel="stylesheet">
+    function saveToStorage() {
+      const tableData = document.getElementById("tablaDatos").innerHTML;
+      localStorage.setItem("registroParadas", tableData);
+    }
 
-    <!-- Custom styles for this template -->
-    <link href="https://v4-alpha.getbootstrap.com/examples/starter-template/starter-template.css" rel="stylesheet">
-  </head>
+    async function addRegistro(motivo) {
+      const precio = document.getElementById("precio").value;
+      if (!precio || !motivo) {
+        alert("Por favor, completa el precio y el motivo.");
+        return;
+      }
 
-  <body>
+      if (!navigator.geolocation) {
+        alert("Geolocalización no soportada");
+        return;
+      }
 
-    <nav class="navbar navbar-toggleable-md navbar-inverse bg-inverse fixed-top">
-      <button class="navbar-toggler navbar-toggler-right" type="button" data-toggle="collapse" data-target="#navbarsExampleDefault" aria-controls="navbarsExampleDefault" aria-expanded="false" aria-label="Toggle navigation">
-        <span class="navbar-toggler-icon"></span>
-      </button>
-      <a class="navbar-brand" href="#">Navbar</a>
+      navigator.geolocation.getCurrentPosition(
+        async pos => {
+          const lat = pos.coords.latitude.toFixed(5);
+          const lon = pos.coords.longitude.toFixed(5);
+          let ubicacion = `lat:${lat},lon:${lon}`;
+          const fechaHora = new Date().toLocaleString("es-ES", {
+            day: "2-digit",
+            month: "2-digit",
+            year: "numeric",
+            hour: "2-digit",
+            minute: "2-digit",
+            second: "2-digit"
+          });
 
-      <div class="collapse navbar-collapse" id="navbarsExampleDefault">
-        <ul class="navbar-nav mr-auto">
-          <li class="nav-item active">
-            <a class="nav-link" href="#">Home <span class="sr-only">(current)</span></a>
-          </li>
-          <li class="nav-item">
-            <a class="nav-link" href="#">Link</a>
-          </li>
-          <li class="nav-item">
-            <a class="nav-link disabled" href="#">Disabled</a>
-          </li>
-          <li class="nav-item dropdown">
-            <a class="nav-link dropdown-toggle" href="http://example.com" id="dropdown01" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">Dropdown</a>
-            <div class="dropdown-menu" aria-labelledby="dropdown01">
-              <a class="dropdown-item" href="#">Action</a>
-              <a class="dropdown-item" href="#">Another action</a>
-              <a class="dropdown-item" href="#">Something else here</a>
-            </div>
-          </li>
-        </ul>
-        <form class="form-inline my-2 my-lg-0">
-          <input class="form-control mr-sm-2" type="text" placeholder="Search">
-          <button class="btn btn-outline-success my-2 my-sm-0" type="submit">Search</button>
-        </form>
-      </div>
-    </nav>
+          try {
+            const response = await fetch(`https://nominatim.openstreetmap.org/reverse?lat=${lat}&lon=${lon}&format=json`);
+            const data = await response.json();
+            if (data.display_name) {
+              ubicacion += ` (${data.display_name})`;
+            }
+          } catch (err) {
+            console.error("Error al obtener dirección:", err);
+          }
 
-    <div class="container">
+          const fila = `<tr><td>${fechaHora}</td><td>${precio}</td><td>${motivo}</td><td>${ubicacion}</td><td><button class="deleteRowBtn" onclick="this.parentElement.parentElement.remove();saveToStorage()">Eliminar</button></td></tr>`;
+          document.getElementById("tablaDatos").innerHTML += fila;
 
-      <div class="starter-template">
-        <h1>Bootstrap starter template</h1>
-        <p class="lead">Use this document as a way to quickly start any new project.<br> All you get is this text and a mostly barebones HTML document.</p>
-      </div>
+          document.getElementById("precio").value = "";
+          document.getElementById("motivo").value = "";
+          saveToStorage();
+        },
+        err => {
+          alert("Error al obtener ubicación: " + err.message);
+        },
+        {
+          enableHighAccuracy: true,
+          timeout: 10000,
+          maximumAge: 0
+        }
+      );
+    }
 
-    </div><!-- /.container -->
+    function exportToCSV() {
+      const rows = document.querySelectorAll("#tablaDatos tr");
+      let csvContent = "Fecha y Hora,Precio,Motivo,Ubicación\n";
+      rows.forEach(row => {
+        const cells = row.querySelectorAll("td:not(:last-child)");
+        const rowData = Array.from(cells).map(cell => `"${cell.textContent.replace(/"/g, '""')}"`).join(",");
+        csvContent += rowData + "\n";
+      });
+      const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+      const link = document.createElement("a");
+      link.href = URL.createObjectURL(blob);
+      link.download = "registro_paradas.csv";
+      link.click();
+    }
 
+    function loadFromCSV() {
+      const fileInput = document.getElementById("csvFileInput");
+      const file = fileInput.files[0];
+      if (!file) {
+        alert("Por favor, selecciona un archivo CSV.");
+        return;
+      }
 
-    <!-- Bootstrap core JavaScript
-    ================================================== -->
-    <!-- Placed at the end of the document so the pages load faster -->
-    <script src="https://code.jquery.com/jquery-3.1.1.slim.min.js" integrity="sha384-A7FZj7v+d/sdmMqp/nOQwliLvUsJfDHW+k9Omg/a/EheAdgtzNs3hpfag6Ed950n" crossorigin="anonymous"></script>
-    <script>window.jQuery || document.write('<script src="../../assets/js/vendor/jquery.min.js"><\/script>')</script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/tether/1.4.0/js/tether.min.js" integrity="sha384-DztdAPBWPRXSA/3eYEEUWrWCy7G5KFbe8fFjk5JAIxUYHKkDx6Qin1DkWx51bBrb" crossorigin="anonymous"></script>
-    <script src="https://v4-alpha.getbootstrap.com/dist/js/bootstrap.min.js"></script>
-    <!-- IE10 viewport hack for Surface/desktop Windows 8 bug -->
-    <script src="https://v4-alpha.getbootstrap.com/assets/js/ie10-viewport-bug-workaround.js"></script>
-  </body>
+      if (!file.name.endsWith('.csv')) {
+        alert("El archivo seleccionado no es un CSV válido.");
+        return;
+      }
+
+      const reader = new FileReader();
+      reader.onload = function(e) {
+        try {
+          const text = e.target.result;
+          const rows = text.split(/\r?\n/).slice(1); // Saltar encabezado, manejar saltos de línea
+          let tableHTML = "";
+          rows.forEach(row => {
+            if (row.trim()) { // Ignorar filas vacías
+              // Manejar comas dentro de campos entrecomillados
+              const cols = row.match(/(?:[^,"]+|"[^"]*")+/g)?.map(col => col.replace(/^"|"$/g, "").replace(/""/g, "\"")) || [];
+              if (cols.length >= 4) {
+                tableHTML += `<tr><td>${cols[0]}</td><td>${cols[1]}</td><td>${cols[2]}</td><td>${cols[3]}</td><td><button class="deleteRowBtn" onclick="this.parentElement.parentElement.remove();saveToStorage()">Eliminar</button></td></tr>`;
+              }
+            }
+          });
+          if (tableHTML) {
+            document.getElementById("tablaDatos").innerHTML = tableHTML;
+            saveToStorage();
+            alert("Datos cargados correctamente desde el CSV.");
+          } else {
+            alert("El archivo CSV no contiene datos válidos o no sigue el formato esperado.");
+          }
+        } catch (err) {
+          alert("Error al procesar el archivo CSV: " + err.message);
+        }
+      };
+      reader.onerror = function() {
+        alert("Error al leer el archivo CSV.");
+      };
+      reader.readAsText(file);
+    }
+
+    function deleteAllRows() {
+      if (confirm("¿Estás seguro de que quieres eliminar todos los registros?")) {
+        document.getElementById("tablaDatos").innerHTML = "";
+        localStorage.removeItem("registroParadas");
+      }
+    }
+
+    window.onload = loadStoredData;
+  </script>
+</body>
 </html>
