@@ -33,9 +33,16 @@
     }
     .button-container {
       display: flex;
-      justify-content: flex-end;
+      flex-direction: column; /* Disposición vertical */
+      align-items: flex-end; /* Alineación a la derecha */
       gap: 10px;
       width: 100%;
+    }
+    .save-button-container {
+      display: flex;
+      justify-content: flex-end; /* Alineación a la derecha */
+      width: 100%;
+      margin-top: 10px;
     }
     button {
       padding: 25px 50px; /* Botones más grandes */
@@ -46,6 +53,7 @@
       cursor: pointer;
       font-size: 18px; /* Texto más grande */
       transition: background-color 0.2s;
+      width: 200px; /* Ancho fijo para consistencia */
     }
     button:hover {
       background-color: #2980b9;
@@ -108,12 +116,14 @@
   <form id="registroForm">
     <input type="text" id="precio" placeholder="Precio (ej. 4.37)" required>
     <input type="text" id="motivo" placeholder="Motivo personalizado">
+    <div class="save-button-container">
+      <button type="button" onclick="addRegistro(document.getElementById('motivo').value)">Guardar</button>
+    </div>
     <div class="button-container">
       <button type="button" onclick="addRegistro('Peaje')">Peaje</button>
       <button type="button" onclick="addRegistro('Gasolina')">Gasolina</button>
       <button type="button" onclick="addRegistro('Camping')">Hospedaje</button>
       <button type="button" onclick="addRegistro('Comida')">Comida</button>
-      <button type="button" onclick="addRegistro(document.getElementById('motivo').value)">Guardar</button>
     </div>
   </form>
   <div>
