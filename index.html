@@ -3,6 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <title>Registro de Paradas</title>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
   <style>
     body {
       font-family: Arial, sans-serif;
@@ -150,7 +151,7 @@
     </div>
     <div class="save-export-container">
       <button id="saveBtn" type="button" onclick="addRegistro(document.getElementById('observaciones').value)">Guardar Motivo Personalizado</button>
-      <button id="exportBtn" onclick="exportToCSV()">Exportar CSV</button>
+      <button id="exportBtn" onclick="exportToExcel()">Exportar Excel</button>
     </div>
   </form>
   <table>
@@ -242,19 +243,45 @@
       }
     }
 
-    function exportToCSV() {
-      const rows = document.querySelectorAll("#tablaDatos tr");
-      let csvContent = "Fecha y Hora,Precio,Observaciones,Ubicación\n";
-      rows.forEach(row => {
-        const cells = row.querySelectorAll("td:not(:last-child)");
-        const rowData = Array.from(cells).map(cell => `"${cell.textContent.replace(/"/g, '""')}"`).join(",");
-        csvContent += rowData + "\n";
-      });
-      const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
-      const link = document.createElement("a");
-      link.href = URL.createObjectURL(blob);
-      link.download = "registro_paradas.csv";
-      link.click();
+    function exportToExcel() {
+      // Verificar si XLSX está disponible
+      if (typeof XLSX === 'undefined') {
+        alert("Error: No se pudo cargar la librería de Excel. Por favor, verifica tu conexión a internet.");
+        return;
+      }
+
+      try {
+        const rows = document.querySelectorAll("#tablaDatos tr");
+        const data = [
+          ["Fecha y Hora", "Precio", "Observaciones", "Ubicación"]
+        ];
+        rows.forEach(row => {
+          const cells = row.querySelectorAll("td:not(:last-child)");
+          const rowData = Array.from(cells).map(cell => cell.textContent);
+          data.push(rowData);
+        });
+
+        // Crear hoja de cálculo
+        const worksheet = XLSX.utils.aoa_to_sheet(data);
+        const workbook = XLSX.utils.book_new();
+        XLSX.utils.book_append_sheet(workbook, worksheet, "Paradas");
+
+        // Generar archivo binario
+        const excelBuffer = XLSX.write(workbook, { bookType: "xlsx", type: "array" });
+        const blob = new Blob([excelBuffer], { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" });
+
+        // Crear enlace de descarga
+        const link = document.createElement("a");
+        link.href = URL.createObjectURL(blob);
+        link.download = "registro_paradas.xlsx";
+        document.body.appendChild(link); // Necesario para algunos navegadores
+        link.click();
+        document.body.removeChild(link); // Limpiar
+        URL.revokeObjectURL(link.href); // Liberar memoria
+      } catch (err) {
+        console.error("Error al exportar a Excel:", err);
+        alert("Error al generar el archivo Excel: " + err.message);
+      }
     }
 
     window.onload = loadStoredData;
