@@ -26,7 +26,7 @@
       box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
       justify-content: space-between; /* Distribuye los contenedores */
     }
-    input[type="text"] {
+    input[type="text"], input[type="number"] {
       flex: 1;
       padding: 10px;
       border: 1px solid #ccc;
@@ -140,7 +140,7 @@
   <h2>Registro de Paradas / Repostajes</h2>
   <form id="registroForm">
     <div class="input-container">
-      <input type="text" id="precio" placeholder="Precio (ej. 4.37)" required>
+      <input type="number" id="precio" placeholder="Precio (ej. 4.37)" step="0.01" min="0" required>
       <input type="text" id="observaciones" placeholder="Observaciones personalizadas">
     </div>
     <div class="button-container">
@@ -181,9 +181,17 @@
     }
 
     async function addRegistro(observaciones) {
-      const precio = document.getElementById("precio").value;
+      const precioInput = document.getElementById("precio");
+      const precio = precioInput.value;
       if (!precio || !observaciones) {
         alert("Por favor, completa el precio y las observaciones.");
+        return;
+      }
+
+      // Validar que el precio sea un número válido
+      const precioNum = parseFloat(precio);
+      if (isNaN(precioNum) || precioNum < 0) {
+        alert("Por favor, introduce un precio válido (ej. 4.37).");
         return;
       }
 
@@ -216,10 +224,10 @@
             console.error("Error al obtener dirección:", err);
           }
 
-          const fila = `<tr><td>${fechaHora}</td><td>${precio}</td><td>${observaciones}</td><td>${ubicacion}</td><td><button class="deleteRowBtn" onclick="this.parentElement.parentElement.remove();saveToStorage()">Eliminar</button></td></tr>`;
+          const fila = `<tr><td>${fechaHora}</td><td>${precioNum.toFixed(2)}</td><td>${observaciones}</td><td>${ubicacion}</td><td><button class="deleteRowBtn" onclick="this.parentElement.parentElement.remove();saveToStorage()">Eliminar</button></td></tr>`;
           document.getElementById("tablaDatos").innerHTML += fila;
 
-          document.getElementById("precio").value = "";
+          precioInput.value = "";
           document.getElementById("observaciones").value = "";
           saveToStorage();
         },
@@ -237,7 +245,7 @@
     function promptLitros() {
       const litros = prompt("Introduce los litros de gasolina:");
       if (litros !== null && !isNaN(litros) && litros.trim() !== "" && Number(litros) > 0) {
-        addRegistro(`Gasolina (${litros} litros)`);
+        addRegistro(`Gasolina (${parseFloat(litros).toFixed(2)} litros)`);
       } else if (litros !== null) {
         alert("Por favor, introduce un número válido de litros.");
       }
@@ -257,12 +265,32 @@
         ];
         rows.forEach(row => {
           const cells = row.querySelectorAll("td:not(:last-child)");
-          const rowData = Array.from(cells).map(cell => cell.textContent);
+          const rowData = Array.from(cells).map((cell, index) => {
+            // Convertir la columna Precio (índice 1) a número
+            if (index === 1) {
+              return parseFloat(cell.textContent) || 0;
+            }
+            return cell.textContent;
+          });
           data.push(rowData);
         });
 
-        // Crear hoja de cálculo
+        // Crear hoja de cálculo con formato numérico para la columna Precio
         const worksheet = XLSX.utils.aoa_to_sheet(data);
+        worksheet['!cols'] = [
+          { wch: 20 }, // Ancho para Fecha y Hora
+          { wch: 10 }, // Ancho para Precio
+          { wch: 20 }, // Ancho para Observaciones
+          { wch: 40 }  // Ancho para Ubicación
+        ];
+        for (let i = 1; i < data.length; i++) {
+          const cellRef = `B${i + 1}`; // Columna Precio (B) desde la fila 2
+          if (worksheet[cellRef]) {
+            worksheet[cellRef].t = 'n'; // Tipo numérico
+            worksheet[cellRef].z = '0.00'; // Formato con 2 decimales
+          }
+        }
+
         const workbook = XLSX.utils.book_new();
         XLSX.utils.book_append_sheet(workbook, worksheet, "Paradas");
 
@@ -274,10 +302,10 @@
         const link = document.createElement("a");
         link.href = URL.createObjectURL(blob);
         link.download = "registro_paradas.xlsx";
-        document.body.appendChild(link); // Necesario para algunos navegadores
+        document.body.appendChild(link);
         link.click();
-        document.body.removeChild(link); // Limpiar
-        URL.revokeObjectURL(link.href); // Liberar memoria
+        document.body.removeChild(link);
+        URL.revokeObjectURL(link.href);
       } catch (err) {
         console.error("Error al exportar a Excel:", err);
         alert("Error al generar el archivo Excel: " + err.message);
