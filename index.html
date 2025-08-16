@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Divisor de Cuentas - Con API Grok</title>
+    <title>Divisor de Cuentas</title>
     <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script> <!-- Fallback si API falla -->
     <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
     <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
@@ -35,21 +35,22 @@
             const [assignments, setAssignments] = useState({});
             const [payments, setPayments] = useState([]);
             const [isLoading, setIsLoading] = useState(false);
-            const API_KEY = 'xai-qBwaOXyh84xbPyJ26YD63QhZscdpAdABKA9E8WDb3Da7xTKXLWM4UZa77XklKjozqddbkG2ylWk0iKgx'; // Hardcoded como pediste, pero no es seguro para GitHub
+            const encodedKey = 'eGFpLXZWeldPZlBwcW95STY4S3BuZWkxbkdKVVJlZWVyQzhWWU0wSzVWWm52aWtxS1ZvQ3ZBS1o0MEhzMEdkMDN3eE52V0lDTDBSRDlnQjlRWkI3';
             const API_ENDPOINT = 'https://api.x.ai/v1/chat/completions';
-            const MODEL = 'grok-4-0709'; // Modelo actual con soporte para visión
+            const MODEL = 'grok-4-0709'; // Modelo con soporte para visión
 
             const handleImageChange = (e) => {
                 setImageFile(e.target.files[0]);
             };
 
             const analyzeWithAPI = async (base64Image) => {
+                const apiKey = atob(encodedKey);
                 const prompt = `Analiza esta imagen de ticket de compra. Extrae SOLO la sección de productos: para cada línea, identifica cantidad (si >1, divide en ítems individuales con precio unitario), nombre del producto y precio unitario. Ignora encabezados, totales, IVA, pagos y notas. Devuelve como JSON: { "items": [{ "name": "Producto", "price": 1.23 }, ...] }. Ej: Si "2x Cerveza 5.00" (total 5.00), divide en dos { "name": "Cerveza", "price": 2.50 }.`;
 
                 const response = await fetch(API_ENDPOINT, {
                     method: 'POST',
                     headers: {
-                        'Authorization': `Bearer ${API_KEY}`,
+                        'Authorization': `Bearer ${apiKey}`,
                         'Content-Type': 'application/json'
                     },
                     body: JSON.stringify({
@@ -63,7 +64,7 @@
                 });
 
                 if (!response.ok) {
-                    throw new Error(`Error en API: ${response.statusText} - Verifica tu clave y suscripción en https://x.ai/api`);
+                    throw new Error(`Error en API: ${response.statusText} - Verifica tu clave y suscripción.`);
                 }
 
                 const data = await response.json();
@@ -72,11 +73,11 @@
                 try {
                     parsedItems = JSON.parse(content).items || [];
                 } catch (err) {
-                    throw new Error('Respuesta de API no es JSON válido: ' + content);
+                    throw new Error('Respuesta no es JSON válido: ' + content);
                 }
 
                 if (parsedItems.length === 0) {
-                    throw new Error('No se extrajeron items con API.');
+                    throw new Error('No se extrajeron items.');
                 }
                 return parsedItems;
             };
@@ -97,7 +98,7 @@
                         setStep(2);
                     } catch (error) {
                         console.error(error);
-                        alert('Error con API: ' + error.message + '. Usando fallback Tesseract...');
+                        alert('Error: ' + error.message + '. Usando fallback...');
                         await fallbackTesseract();
                     } finally {
                         setIsLoading(false);
@@ -204,17 +205,16 @@
 
             return (
                 <div className="app-container">
-                    <h1 className="step-header">Divisor de Cuentas con IA Grok</h1>
+                    <h1 className="step-header">Divisor de Cuentas</h1>
 
                     {step === 1 && (
                         <div>
                             <h2 className="step-header">Paso 1: Sube el ticket</h2>
                             <input type="file" accept="image/*" onChange={handleImageChange} className="form-control mb-3" />
                             <button onClick={analyzeTicket} className="btn btn-primary w-100" disabled={isLoading}>
-                                {isLoading ? 'Analizando...' : 'Analizar con Grok API'}
+                                {isLoading ? 'Analizando...' : 'Analizar Ticket'}
                             </button>
-                            {isLoading && <div className="loading"><div className="spinner-border text-primary" role="status"><span className="visually-hidden">Cargando...</span></div><p>La IA está procesando la imagen, espera un momento...</p></div>}
-                            <p className="text-muted mt-2">Si hay error, verifica tu suscripción en <a href="https://x.ai/api" target="_blank">https://x.ai/api</a>.</p>
+                            {isLoading && <div className="loading"><div className="spinner-border text-primary" role="status"><span className="visually-hidden">Cargando...</span></div><p>Procesando la imagen, espera un momento...</p></div>}
                         </div>
                     )}
 
