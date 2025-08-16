@@ -51,7 +51,7 @@
                 const { data: { text } } = await worker.recognize(imageFile);
                 await worker.terminate();
 
-                const skipWords = ['total', 'subtotal', 'iva', 'tax', 'propina', 'gracias', 'efectivo', 'cambio', 'tarjeta', 'bancaria', 'importe'];
+                const skipWords = ['total', 'subtotal', 'iva', 'tax', 'propina', 'gracias', 'efectivo', 'cambio', 'tarjeta', 'bancaria', 'importe', 'base imponible', 'concepto', 'precio', 'c. concepto'];
                 const lines = text.split('\n').filter(line => {
                     const trimmed = line.trim().toLowerCase();
                     return trimmed && !skipWords.some(word => trimmed.includes(word));
@@ -59,15 +59,17 @@
 
                 const parsedItems = [];
                 lines.forEach(line => {
-                    // Match con cantidad, nombre, precio unitario, total (ej: "3 Tropical S/Az Añadid 0.90 2.70")
-                    const fullMatch = line.match(/^\s*(\d+)\s*(.+?)\s*(\d+[.,]\d+)\s*(\d+[.,]\d*)\s*$/);
+                    // Match para formatos con qty, name, unit price €, total € (ej: "1 OLIVAS 0,00 € 0,00 €")
+                    const fullMatch = line.match(/^\s*(\d+)\s*(.+?)\s*(\d+[.,]\d*)\s*€\s*(\d+[.,]\d*)\s*€\s*$/);
                     if (fullMatch) {
                         const qty = parseInt(fullMatch[1]);
                         const name = fullMatch[2].trim();
-                        const unitPrice = parseFloat(fullMatch[3].replace(',', '.'));
-                        const total = parseFloat(fullMatch[4].replace(',', '.'));
-                        // Verificar si total ≈ qty * unitPrice
-                        if (Math.abs(total - qty * unitPrice) < 0.01) {
+                        const unitPriceStr = fullMatch[3].replace(',', '.');
+                        const totalStr = fullMatch[4].replace(',', '.');
+                        const unitPrice = parseFloat(unitPriceStr);
+                        const total = parseFloat(totalStr);
+                        // Verificar consistencia
+                        if (!isNaN(unitPrice) && !isNaN(total) && Math.abs(total - qty * unitPrice) < 0.01) {
                             for (let i = 0; i < qty; i++) {
                                 parsedItems.push({ name, price: unitPrice });
                             }
@@ -75,7 +77,22 @@
                         }
                     }
 
-                    // Match sin cantidad o alternativo (ej: "Nombre 1.50")
+                    // Match alternativo para qty, name, unit price (sin € o total)
+                    const qtyMatch = line.match(/^\s*(\d+)\s*x?\s*(.+?)\s*(\d+[.,]\d*)\s*$/);
+                    if (qtyMatch) {
+                        const qty = parseInt(qtyMatch[1]);
+                        const name = qtyMatch[2].trim();
+                        const totalPrice = parseFloat(qtyMatch[3].replace(',', '.'));
+                        const price = totalPrice / qty;
+                        if (!isNaN(price)) {
+                            for (let i = 0; i < qty; i++) {
+                                parsedItems.push({ name, price });
+                            }
+                            return;
+                        }
+                    }
+
+                    // Match simple para name unit price (qty=1)
                     const simpleMatch = line.match(/^\s*(.+?)\s*(\d+[.,]\d*)\s*$/);
                     if (simpleMatch) {
                         const name = simpleMatch[1].trim();
@@ -83,26 +100,11 @@
                         if (!isNaN(price)) {
                             parsedItems.push({ name, price });
                         }
-                        return;
-                    }
-
-                    // Match con cantidad al principio (ej: "1 Nombre 1.50")
-                    const qtySimpleMatch = line.match(/^\s*(\d+)\s*x?\s*(.+?)\s*(\d+[.,]\d*)\s*$/);
-                    if (qtySimpleMatch) {
-                        const qty = parseInt(qtySimpleMatch[1]);
-                        const name = qtySimpleMatch[2].trim();
-                        const totalPrice = parseFloat(qtySimpleMatch[3].replace(',', '.'));
-                        const price = totalPrice / qty;
-                        if (!isNaN(price)) {
-                            for (let i = 0; i < qty; i++) {
-                                parsedItems.push({ name, price });
-                            }
-                        }
                     }
                 });
 
                 if (parsedItems.length === 0) {
-                    alert('No se pudieron extraer productos. Intenta con una imagen más clara o ajusta el ticket para que sea legible.');
+                    alert('No se pudieron extraer productos. Intenta con una imagen más clara, o asegúrate de que el ticket tenga líneas claras de productos (ej: "1 Producto 2,50 € 2,50 €").');
                     setIsLoading(false);
                     return;
                 }
