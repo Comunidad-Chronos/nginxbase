@@ -398,9 +398,28 @@
         const excelBuffer = XLSX.write(workbook, { bookType: "xlsx", type: "array" });
         const blob = new Blob([excelBuffer], { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" });
 
-        // Crear enlace de descarga con nombre dinámico incluyendo fecha y hora
+        // Crear enlace de descarga con nombre dinámico incluyendo fecha y hora en la zona horaria local del dispositivo
         const now = new Date();
-        const formattedDate = now.toISOString().replace(/T/, '_').replace(/\..+/, '').replace(/:/g, '-');
+        const options = {
+          year: 'numeric',
+          month: '2-digit',
+          day: '2-digit',
+          hour: '2-digit',
+          minute: '2-digit',
+          second: '2-digit',
+          hour12: false
+        };
+        const formatter = new Intl.DateTimeFormat('en-US', options);
+        const parts = formatter.formatToParts(now);
+        const dateParts = {
+          year: parts.find(p => p.type === 'year').value,
+          month: parts.find(p => p.type === 'month').value,
+          day: parts.find(p => p.type === 'day').value,
+          hour: parts.find(p => p.type === 'hour').value,
+          minute: parts.find(p => p.type === 'minute').value,
+          second: parts.find(p => p.type === 'second').value
+        };
+        const formattedDate = `${dateParts.year}-${dateParts.month}-${dateParts.day}_${dateParts.hour}-${dateParts.minute}-${dateParts.second}`;
         const link = document.createElement("a");
         link.href = URL.createObjectURL(blob);
         link.download = `registro_paradas_${formattedDate}.xlsx`;
