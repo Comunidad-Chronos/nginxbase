@@ -53,7 +53,7 @@
     .save-export-container {
       width: 100%;
       display: flex;
-      justify-content: space-between; /* Exportar a la derecha, Guardar a la izquierda */
+      justify-content: space-between; /* Exportar a la izquierda, Guardar a la derecha */
       gap: 10px;
       margin-top: 10px;
     }
@@ -140,18 +140,19 @@
   <h2>Registro de Paradas / Repostajes</h2>
   <form id="registroForm">
     <div class="input-container">
-      <input type="number" id="precio" placeholder="Precio (ej. 4.37)" step="0.01" min="0" required>
+      <input type="number" id="precio" placeholder="Precio (ej. 4.37)" step="0.01" min="0">
       <input type="text" id="observaciones" placeholder="Observaciones personalizadas">
     </div>
     <div class="button-container">
-      <button type="button" onclick="addRegistro('Peaje')">Peaje</button>
+      <button type="button" onclick="addRegistro('Peaje', 0, 0)">Peaje</button>
       <button type="button" onclick="promptLitros()">Gasolina</button>
-      <button type="button" onclick="addRegistro('Hospedaje')">Hospedaje</button>
-      <button type="button" onclick="addRegistro('Comida')">Comida</button>
+      <button type="button" onclick="promptKilometros()">Kilómetros</button>
+      <button type="button" onclick="addRegistro('Hospedaje', 0, 0)">Hospedaje</button>
+      <button type="button" onclick="addRegistro('Comida', 0, 0)">Comida</button>
     </div>
     <div class="save-export-container">
-      <button id="saveBtn" type="button" onclick="addRegistro(document.getElementById('observaciones').value)">Guardar Motivo Personalizado</button>
       <button id="exportBtn" onclick="exportToExcel()">Exportar Excel</button>
+      <button id="saveBtn" type="button" onclick="addRegistro(document.getElementById('observaciones').value, 0, 0)">Guardar Motivo Personalizado</button>
     </div>
   </form>
   <table>
@@ -159,6 +160,8 @@
       <tr>
         <th>Fecha y Hora</th>
         <th>Precio</th>
+        <th>Litros</th>
+        <th>Kilómetros</th>
         <th>Observaciones</th>
         <th>Ubicación</th>
         <th>Acción</th>
@@ -180,10 +183,10 @@
       localStorage.setItem("registroParadas", tableData);
     }
 
-    async function addRegistro(observaciones) {
+    async function addRegistro(observaciones, litros = 0, kilometros = 0) {
       const precioInput = document.getElementById("precio");
       const precio = precioInput.value;
-      if (!precio || !observaciones) {
+      if (!precio && precio !== 0 || !observaciones) {
         alert("Por favor, completa el precio y las observaciones.");
         return;
       }
@@ -224,7 +227,7 @@
             console.error("Error al obtener dirección:", err);
           }
 
-          const fila = `<tr><td>${fechaHora}</td><td>${precioNum.toFixed(2)}</td><td>${observaciones}</td><td>${ubicacion}</td><td><button class="deleteRowBtn" onclick="this.parentElement.parentElement.remove();saveToStorage()">Eliminar</button></td></tr>`;
+          const fila = `<tr><td>${fechaHora}</td><td>${precioNum.toFixed(2)}</td><td>${litros.toFixed(2)}</td><td>${kilometros.toFixed(2)}</td><td>${observaciones}</td><td>${ubicacion}</td><td><button class="deleteRowBtn" onclick="this.parentElement.parentElement.remove();saveToStorage()">Eliminar</button></td></tr>`;
           document.getElementById("tablaDatos").innerHTML += fila;
 
           precioInput.value = "";
@@ -245,9 +248,19 @@
     function promptLitros() {
       const litros = prompt("Introduce los litros de gasolina:");
       if (litros !== null && !isNaN(litros) && litros.trim() !== "" && Number(litros) > 0) {
-        addRegistro(`Gasolina (${parseFloat(litros).toFixed(2)} litros)`);
+        addRegistro('Gasolina', parseFloat(litros), 0);
       } else if (litros !== null) {
         alert("Por favor, introduce un número válido de litros.");
+      }
+    }
+
+    function promptKilometros() {
+      const km = prompt("Introduce los kilómetros:");
+      if (km !== null && !isNaN(km) && km.trim() !== "" && Number(km) > 0) {
+        document.getElementById("precio").value = 0;
+        addRegistro('Kilómetros', 0, parseFloat(km));
+      } else if (km !== null) {
+        alert("Por favor, introduce un número válido de kilómetros.");
       }
     }
 
@@ -261,13 +274,13 @@
       try {
         const rows = document.querySelectorAll("#tablaDatos tr");
         const data = [
-          ["Fecha y Hora", "Precio", "Observaciones", "Ubicación"]
+          ["Fecha y Hora", "Precio", "Litros", "Kilómetros", "Observaciones", "Ubicación"]
         ];
         rows.forEach(row => {
           const cells = row.querySelectorAll("td:not(:last-child)");
           const rowData = Array.from(cells).map((cell, index) => {
-            // Convertir la columna Precio (índice 1) a número
-            if (index === 1) {
+            // Convertir columnas numéricas a número: Precio (1), Litros (2), Kilómetros (3)
+            if (index === 1 || index === 2 || index === 3) {
               return parseFloat(cell.textContent) || 0;
             }
             return cell.textContent;
@@ -275,20 +288,24 @@
           data.push(rowData);
         });
 
-        // Crear hoja de cálculo con formato numérico para la columna Precio
+        // Crear hoja de cálculo con formato numérico para columnas Precio, Litros, Kilómetros
         const worksheet = XLSX.utils.aoa_to_sheet(data);
         worksheet['!cols'] = [
-          { wch: 20 }, // Ancho para Fecha y Hora
-          { wch: 10 }, // Ancho para Precio
-          { wch: 20 }, // Ancho para Observaciones
-          { wch: 40 }  // Ancho para Ubicación
+          { wch: 20 }, // Fecha y Hora
+          { wch: 10 }, // Precio
+          { wch: 10 }, // Litros
+          { wch: 10 }, // Kilómetros
+          { wch: 20 }, // Observaciones
+          { wch: 40 }  // Ubicación
         ];
         for (let i = 1; i < data.length; i++) {
-          const cellRef = `B${i + 1}`; // Columna Precio (B) desde la fila 2
-          if (worksheet[cellRef]) {
-            worksheet[cellRef].t = 'n'; // Tipo numérico
-            worksheet[cellRef].z = '0.00'; // Formato con 2 decimales
-          }
+          ['B', 'C', 'D'].forEach(col => {
+            const cellRef = `${col}${i + 1}`; // Columnas B (Precio), C (Litros), D (Kilómetros)
+            if (worksheet[cellRef]) {
+              worksheet[cellRef].t = 'n'; // Tipo numérico
+              worksheet[cellRef].z = '0.00'; // Formato con 2 decimales
+            }
+          });
         }
 
         const workbook = XLSX.utils.book_new();
