@@ -37,7 +37,7 @@
             const [isLoading, setIsLoading] = useState(false);
             const encodedKey = 'eGFpLXZWeldPZlBwcW95STY4S3BuZWkxbkdKVVJlZWVyQzhWWU0wSzVWWm52aWtxS1ZvQ3ZBS1o0MEhzMEdkMDN3eE52V0lDTDBSRDlnQjlRWkI3';
             const API_ENDPOINT = 'https://api.x.ai/v1/chat/completions';
-            const MODEL = 'grok-4-0709'; // Modelo con soporte para visión
+            const MODEL = 'grok-4'; // Actualizado al modelo válido según docs
 
             const handleImageChange = (e) => {
                 setImageFile(e.target.files[0]);
@@ -45,7 +45,7 @@
 
             const analyzeWithAPI = async (base64Image) => {
                 const apiKey = atob(encodedKey);
-                const prompt = `Analiza esta imagen de ticket de compra. Extrae SOLO la sección de productos: para cada línea, identifica cantidad (si >1, divide en ítems individuales con precio unitario), nombre del producto y precio unitario. Ignora encabezados, totales, IVA, pagos y notas. Devuelve como JSON: { "items": [{ "name": "Producto", "price": 1.23 }, ...] }. Ej: Si "2x Cerveza 5.00" (total 5.00), divide en dos { "name": "Cerveza", "price": 2.50 }.`;
+                const prompt = `Analiza esta imagen de ticket de compra. Extrae SOLO la sección de productos: para cada línea, identifica cantidad (si >1, divide en ítems individuales con precio unitario), nombre del producto y precio unitario. Ignora encabezados, totales, IVA, pagos y notas. Responde SOLO con el JSON, sin texto adicional: { "items": [{ "name": "Producto", "price": 1.23 }, ...] }. Ej: Si "2x Cerveza 5.00" (total 5.00), divide en dos { "name": "Cerveza", "price": 2.50 }.`;
 
                 const response = await fetch(API_ENDPOINT, {
                     method: 'POST',
@@ -97,8 +97,9 @@
                         setItems(parsedItems);
                         setStep(2);
                     } catch (error) {
-                        console.error(error);
-                        alert('Error: ' + error.message + '. Usando fallback...');
+                        console.error('Error detallado:', error);
+                        console.log('Respuesta de API:', error.message);
+                        alert('Error: ' + error.message + '. Usando fallback Tesseract... Revisa la consola del navegador (F12) para más detalles sobre el error de API.');
                         await fallbackTesseract();
                     } finally {
                         setIsLoading(false);
@@ -215,6 +216,7 @@
                                 {isLoading ? 'Analizando...' : 'Analizar Ticket'}
                             </button>
                             {isLoading && <div className="loading"><div className="spinner-border text-primary" role="status"><span className="visually-hidden">Cargando...</span></div><p>Procesando la imagen, espera un momento...</p></div>}
+                            <p className="text-muted mt-2">Si hay error, abre la consola del navegador (F12 o Cmd+Option+J en Mac) y busca mensajes de error para depurar.</p>
                         </div>
                     )}
 
