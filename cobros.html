@@ -37,7 +37,7 @@
             const [isLoading, setIsLoading] = useState(false);
             const encodedKey = 'eGFpLXZWeldPZlBwcW95STY4S3BuZWkxbkdKVVJlZWVyQzhWWU0wSzVWWm52aWtxS1ZvQ3ZBS1o0MEhzMEdkMDN3eE52V0lDTDBSRDlnQjlRWkI3';
             const API_ENDPOINT = 'https://api.x.ai/v1/chat/completions';
-            const MODEL = 'grok-4'; // Actualizado al modelo válido según docs
+            const MODEL = 'grok-4';
 
             const handleImageChange = (e) => {
                 setImageFile(e.target.files[0]);
@@ -45,7 +45,7 @@
 
             const analyzeWithAPI = async (base64Image) => {
                 const apiKey = atob(encodedKey);
-                const prompt = `Analiza esta imagen de ticket de compra. Extrae SOLO la sección de productos: para cada línea, identifica cantidad (si >1, divide en ítems individuales con precio unitario), nombre del producto y precio unitario. Ignora encabezados, totales, IVA, pagos y notas. Responde SOLO con el JSON, sin texto adicional: { "items": [{ "name": "Producto", "price": 1.23 }, ...] }. Ej: Si "2x Cerveza 5.00" (total 5.00), divide en dos { "name": "Cerveza", "price": 2.50 }.`;
+                const prompt = `Analiza esta imagen de ticket de compra. Extrae SOLO la sección de productos: para cada línea, identifica cantidad (si >1, divide en ítems individuales con precio unitario), nombre del producto y precio unitario. Ignora encabezados, totales, IVA, pagos y notas. Tu respuesta debe ser SOLO un objeto JSON válido, sin texto adicional, sin bloques de código, sin explicaciones: { "items": [{ "name": "Producto", "price": 1.23 }, ...] }. Ejemplo: Si "2x Cerveza 5.00" (total 5.00), divide en dos { "name": "Cerveza", "price": 2.50 }.`;
 
                 const response = await fetch(API_ENDPOINT, {
                     method: 'POST',
@@ -59,32 +59,35 @@
                             { role: 'user', content: [{ type: 'text', text: prompt }, { type: 'image_url', image_url: { url: `data:image/jpeg;base64,${base64Image}` } }] }
                         ],
                         max_tokens: 1000,
-                        temperature: 0.5
+                        temperature: 0.1 // Bajado para más determinismo
                     })
                 });
 
                 if (!response.ok) {
-                    throw new Error(`Error en API: ${response.statusText} - Verifica tu clave y suscripción.`);
+                    throw new Error(`Error en API: ${response.statusText} - Verifica tu clave y suscripción en https://x.ai/api.`);
                 }
 
                 const data = await response.json();
-                const content = data.choices[0].message.content;
+                let content = data.choices[0].message.content;
+                // Limpia posibles bloques de código o texto extra
+                content = content.replace(/```json|```/g, '').replace(/`/g, '').trim();
+
                 let parsedItems;
                 try {
                     parsedItems = JSON.parse(content).items || [];
                 } catch (err) {
-                    throw new Error('Respuesta no es JSON válido: ' + content);
+                    throw new Error('Respuesta no es JSON válido después de limpieza: ' + content);
                 }
 
                 if (parsedItems.length === 0) {
-                    throw new Error('No se extrajeron items.');
+                    throw new Error('No se extrajeron items de la respuesta.');
                 }
                 return parsedItems;
             };
 
             const analyzeTicket = async () => {
                 if (!imageFile) {
-                    alert('Sube una imagen.');
+                    alert('Sube una imagen del ticket.');
                     return;
                 }
 
@@ -98,8 +101,8 @@
                         setStep(2);
                     } catch (error) {
                         console.error('Error detallado:', error);
-                        console.log('Respuesta de API:', error.message);
-                        alert('Error: ' + error.message + '. Usando fallback Tesseract... Revisa la consola del navegador (F12) para más detalles sobre el error de API.');
+                        console.log('Respuesta cruda de API:', error.message);
+                        alert('Error al analizar con API: ' + error.message + '. Abre la consola del navegador (presiona F12 o Cmd+Option+J en Mac) para ver más detalles. Usando fallback Tesseract como alternativa...');
                         await fallbackTesseract();
                     } finally {
                         setIsLoading(false);
@@ -150,7 +153,7 @@
                     setItems(parsedItems);
                     setStep(2);
                 } else {
-                    alert('No se extrajeron productos ni con fallback.');
+                    alert('No se pudieron extraer productos ni con el fallback. Intenta con una imagen más clara o verifica el formato del ticket.');
                 }
             };
 
@@ -184,7 +187,7 @@
 
                 const unclaimed = itemClaims.filter(count => count === 0).length;
                 if (unclaimed > 0) {
-                    alert(`${unclaimed} productos no reclamados.`);
+                    alert(`${unclaimed} productos no fueron asignados. Asegúrate de distribuir todos antes de calcular.`);
                     return;
                 }
 
@@ -215,8 +218,8 @@
                             <button onClick={analyzeTicket} className="btn btn-primary w-100" disabled={isLoading}>
                                 {isLoading ? 'Analizando...' : 'Analizar Ticket'}
                             </button>
-                            {isLoading && <div className="loading"><div className="spinner-border text-primary" role="status"><span className="visually-hidden">Cargando...</span></div><p>Procesando la imagen, espera un momento...</p></div>}
-                            <p className="text-muted mt-2">Si hay error, abre la consola del navegador (F12 o Cmd+Option+J en Mac) y busca mensajes de error para depurar.</p>
+                            {isLoading && <div className="loading"><div className="spinner-border text-primary" role="status"><span className="visually-hidden">Cargando...</span></div><p>Procesando la imagen, puede tomar unos segundos...</p></div>}
+                            <p className="text-muted mt-2">Si ocurre un error, abre la consola del navegador (F12) para ver detalles y reportarlos. Asegúrate de que la imagen sea clara y el ticket esté bien enfocado.</p>
                         </div>
                     )}
 
