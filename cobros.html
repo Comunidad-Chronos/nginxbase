@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Divisor de Cuentas</title>
-    <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script> <!-- Fallback si API falla -->
+    <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
     <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
     <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
     <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
@@ -35,62 +35,9 @@
             const [assignments, setAssignments] = useState({});
             const [payments, setPayments] = useState([]);
             const [isLoading, setIsLoading] = useState(false);
-            const encodedKey = 'eGFpLXZWeldPZlBwcW95STY4S3BuZWkxbkdKVVJlZWVyQzhWWU0wSzVWWm52aWtxS1ZvQ3ZBS1o0MEhzMEdkMDN3eE52V0lDTDBSRDlnQjlRWkI3';
-            const API_ENDPOINT = 'https://api.x.ai/v1/chat/completions';
-            const MODEL = 'grok-beta';
 
             const handleImageChange = (e) => {
                 setImageFile(e.target.files[0]);
-            };
-
-            const analyzeWithAPI = async (base64Image) => {
-                const apiKey = atob(encodedKey);
-                const prompt = `You are a JSON-only responder. Analyze this receipt image and extract ONLY the product section: for each line, identify quantity (if >1, split into individual items with unit price), product name, and unit price. Ignore headers, totals, IVA, payments, and notes. Output ONLY a valid JSON object with no additional text, no code blocks, no explanations: { "items": [{ "name": "Product", "price": 1.23 }, ...] }. Example: For "2x Beer 5.00" (total 5.00), split into two { "name": "Beer", "price": 2.50 }.`;
-
-                const response = await fetch(API_ENDPOINT, {
-                    method: 'POST',
-                    headers: {
-                        'Authorization': `Bearer ${apiKey}`,
-                        'Content-Type': 'application/json'
-                    },
-                    body: JSON.stringify({
-                        model: MODEL,
-                        messages: [
-                            { role: 'user', content: [{ type: 'text', text: prompt }, { type: 'image_url', image_url: { url: `data:image/jpeg;base64,${base64Image}` } }] }
-                        ],
-                        max_tokens: 1000,
-                        temperature: 0.0 // Muy bajo para forzar output determinista y estricto
-                    })
-                });
-
-                if (!response.ok) {
-                    throw new Error(`Error en API: ${response.statusText} - Verifica tu clave y suscripción en https://x.ai/api.`);
-                }
-
-                const data = await response.json();
-                let content = data.choices[0].message.content.trim();
-                alert('Respuesta raw de API para depurar: ' + content); // Añadido para que veas el raw content en alerta, copia y pega esto en el chat para depurar
-                // Limpieza adicional
-                content = content.replace(/```json|```/g, '').replace(/`/g, '').trim();
-
-                let parsedItems;
-                try {
-                    parsedItems = JSON.parse(content).items || [];
-                } catch (err) {
-                    // Intenta encontrar JSON dentro
-                    const jsonMatch = content.match(/\{[\s\S]*\}/);
-                    if (jsonMatch) {
-                        content = jsonMatch[0];
-                        parsedItems = JSON.parse(content).items || [];
-                    } else {
-                        throw new Error('Respuesta no es JSON válido después de limpieza: ' + content);
-                    }
-                }
-
-                if (parsedItems.length === 0) {
-                    throw new Error('No se extrajeron items de la respuesta.');
-                }
-                return parsedItems;
             };
 
             const analyzeTicket = async () => {
@@ -100,68 +47,69 @@
                 }
 
                 setIsLoading(true);
-                const reader = new FileReader();
-                reader.onload = async (e) => {
-                    const base64 = e.target.result.split(',')[1];
-                    try {
-                        const parsedItems = await analyzeWithAPI(base64);
-                        setItems(parsedItems);
-                        setStep(2);
-                    } catch (error) {
-                        console.error('Error detallado:', error);
-                        alert('Error al analizar con API: ' + error.message + '. Copia el mensaje de "Respuesta raw de API" de la alerta anterior y compártelo en el chat para depurar. Usando fallback Tesseract...');
-                        await fallbackTesseract();
-                    } finally {
-                        setIsLoading(false);
-                    }
-                };
-                reader.readAsDataURL(imageFile);
-            };
-
-            const fallbackTesseract = async () => {
                 const worker = await Tesseract.createWorker('eng+spa');
                 const { data: { text } } = await worker.recognize(imageFile);
                 await worker.terminate();
 
-                const skipWords = ['total', 'subtotal', 'iva', 'tax', 'propina', 'gracias', 'efectivo', 'cambio'];
+                const skipWords = ['total', 'subtotal', 'iva', 'tax', 'propina', 'gracias', 'efectivo', 'cambio', 'tarjeta', 'bancaria', 'importe'];
                 const lines = text.split('\n').filter(line => {
-                    const trimmed = line.trim();
-                    return trimmed && !skipWords.some(word => trimmed.toLowerCase().includes(word));
+                    const trimmed = line.trim().toLowerCase();
+                    return trimmed && !skipWords.some(word => trimmed.includes(word));
                 });
 
                 const parsedItems = [];
                 lines.forEach(line => {
-                    let qty = 1;
-                    let name = '';
-                    let price = 0;
-
-                    const qtyMatch = line.match(/^\s*(\d+)\s*x?\s*(.+?)\s*(\d+[.,]?\d*)\s*$/);
-                    if (qtyMatch) {
-                        qty = parseInt(qtyMatch[1]);
-                        name = qtyMatch[2].trim();
-                        const totalPrice = parseFloat(qtyMatch[3].replace(',', '.'));
-                        price = totalPrice / qty;
-                    } else {
-                        const noQtyMatch = line.match(/^\s*(.+?)\s*(\d+[.,]?\d*)\s*$/);
-                        if (noQtyMatch) {
-                            name = noQtyMatch[1].trim();
-                            price = parseFloat(noQtyMatch[2].replace(',', '.'));
+                    // Match con cantidad, nombre, precio unitario, total (ej: "3 Tropical S/Az Añadid 0.90 2.70")
+                    const fullMatch = line.match(/^\s*(\d+)\s*(.+?)\s*(\d+[.,]\d+)\s*(\d+[.,]\d*)\s*$/);
+                    if (fullMatch) {
+                        const qty = parseInt(fullMatch[1]);
+                        const name = fullMatch[2].trim();
+                        const unitPrice = parseFloat(fullMatch[3].replace(',', '.'));
+                        const total = parseFloat(fullMatch[4].replace(',', '.'));
+                        // Verificar si total ≈ qty * unitPrice
+                        if (Math.abs(total - qty * unitPrice) < 0.01) {
+                            for (let i = 0; i < qty; i++) {
+                                parsedItems.push({ name, price: unitPrice });
+                            }
+                            return;
                         }
                     }
 
-                    if (name && !isNaN(price)) {
-                        for (let i = 0; i < qty; i++) {
+                    // Match sin cantidad o alternativo (ej: "Nombre 1.50")
+                    const simpleMatch = line.match(/^\s*(.+?)\s*(\d+[.,]\d*)\s*$/);
+                    if (simpleMatch) {
+                        const name = simpleMatch[1].trim();
+                        const price = parseFloat(simpleMatch[2].replace(',', '.'));
+                        if (!isNaN(price)) {
                             parsedItems.push({ name, price });
+                        }
+                        return;
+                    }
+
+                    // Match con cantidad al principio (ej: "1 Nombre 1.50")
+                    const qtySimpleMatch = line.match(/^\s*(\d+)\s*x?\s*(.+?)\s*(\d+[.,]\d*)\s*$/);
+                    if (qtySimpleMatch) {
+                        const qty = parseInt(qtySimpleMatch[1]);
+                        const name = qtySimpleMatch[2].trim();
+                        const totalPrice = parseFloat(qtySimpleMatch[3].replace(',', '.'));
+                        const price = totalPrice / qty;
+                        if (!isNaN(price)) {
+                            for (let i = 0; i < qty; i++) {
+                                parsedItems.push({ name, price });
+                            }
                         }
                     }
                 });
 
-                if (parsedItems.length > 0) {
-                    setItems(parsedItems);
-                    setStep(2);
-                } else {
-                    alert('No se pudieron extraer productos ni con el fallback. Intenta con una imagen más clara o verifica el formato del ticket.');
+                if (parsedItems.length === 0) {
+                    alert('No se pudieron extraer productos. Intenta con una imagen más clara o ajusta el ticket para que sea legible.');
+                    setIsLoading(false);
+                    return;
                 }
+
+                setItems(parsedItems);
+                setStep(2);
+                setIsLoading(false);
             };
 
             const proceedToPeople = () => {
@@ -226,7 +174,6 @@
                                 {isLoading ? 'Analizando...' : 'Analizar Ticket'}
                             </button>
                             {isLoading && <div className="loading"><div className="spinner-border text-primary" role="status"><span className="visually-hidden">Cargando...</span></div><p>Procesando la imagen, puede tomar unos segundos...</p></div>}
-                            <p className="text-muted mt-2">Si ocurre un error, copia el mensaje de alerta completo (incluyendo la respuesta raw si aparece) y compártelo para depurar. En móvil, puedes mantener presionado el alerta para copiar el texto.</p>
                         </div>
                     )}
 
