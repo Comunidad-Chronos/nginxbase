@@ -51,7 +51,7 @@
                 const { data: { text } } = await worker.recognize(imageFile);
                 await worker.terminate();
 
-                const skipWords = ['total', 'subtotal', 'iva', 'tax', 'propina', 'gracias', 'efectivo', 'cambio', 'tarjeta', 'bancaria', 'importe', 'base imponible', 'concepto', 'precio', 'c. concepto'];
+                const skipWords = ['total', 'subtotal', 'iva', 'tax', 'propina', 'gracias', 'efectivo', 'cambio', 'tarjeta', 'bancaria', 'importe', 'base', 'concepto', 'precio', 'c. concepto', 'l.v.a.', 'i.v.a.', 'imponible'];
                 const lines = text.split('\n').filter(line => {
                     const trimmed = line.trim().toLowerCase();
                     return trimmed && !skipWords.some(word => trimmed.includes(word));
@@ -60,7 +60,7 @@
                 const parsedItems = [];
                 lines.forEach(line => {
                     // Match para formatos con qty, name, unit price €, total € (ej: "1 OLIVAS 0,00 € 0,00 €")
-                    const fullMatch = line.match(/^\s*(\d+)\s*(.+?)\s*(\d+[.,]\d*)\s*€\s*(\d+[.,]\d*)\s*€\s*$/);
+                    const fullMatch = line.match(/^\s*(\d+)\s*(.+?)\s*(\d+[.,]\d*)\s*€?\s*(\d+[.,]\d*)\s*€?\s*$/);
                     if (fullMatch) {
                         const qty = parseInt(fullMatch[1]);
                         const name = fullMatch[2].trim();
@@ -68,7 +68,7 @@
                         const totalStr = fullMatch[4].replace(',', '.');
                         const unitPrice = parseFloat(unitPriceStr);
                         const total = parseFloat(totalStr);
-                        // Verificar consistencia
+                        // Verificar consistencia (total ≈ qty * unitPrice)
                         if (!isNaN(unitPrice) && !isNaN(total) && Math.abs(total - qty * unitPrice) < 0.01) {
                             for (let i = 0; i < qty; i++) {
                                 parsedItems.push({ name, price: unitPrice });
@@ -104,7 +104,7 @@
                 });
 
                 if (parsedItems.length === 0) {
-                    alert('No se pudieron extraer productos. Intenta con una imagen más clara, o asegúrate de que el ticket tenga líneas claras de productos (ej: "1 Producto 2,50 € 2,50 €").');
+                    alert('No se pudieron extraer productos. Intenta con una imagen más clara, o asegúrate de que el ticket tenga líneas claras de productos (ej: "1 Producto 2,50 € 2,50 €"). Si el problema persiste, prueba girando la imagen o ajustando el contraste.');
                     setIsLoading(false);
                     return;
                 }
