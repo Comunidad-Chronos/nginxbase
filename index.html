@@ -298,10 +298,12 @@
         const excelBuffer = XLSX.write(workbook, { bookType: "xlsx", type: "array" });
         const blob = new Blob([excelBuffer], { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" });
 
-        // Crear enlace de descarga
+        // Crear enlace de descarga con nombre dinámico incluyendo fecha y hora
+        const now = new Date();
+        const formattedDate = now.toISOString().replace(/T/, '_').replace(/\..+/, '').replace(/:/g, '-');
         const link = document.createElement("a");
         link.href = URL.createObjectURL(blob);
-        link.download = "registro_paradas.xlsx";
+        link.download = `registro_paradas_${formattedDate}.xlsx`;
         document.body.appendChild(link);
         link.click();
         document.body.removeChild(link);
