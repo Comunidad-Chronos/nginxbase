@@ -69,22 +69,15 @@
 
                 const data = await response.json();
                 let content = data.choices[0].message.content.trim();
-                // Limpieza adicional para remover cualquier cosa que no sea JSON
-                if (content.startsWith('```json')) {
-                    content = content.slice(7).trim();
-                }
-                if (content.endsWith('```')) {
-                    content = content.slice(0, -3).trim();
-                }
-                if (content.startsWith('`') || content.endsWith('`')) {
-                    content = content.replace(/`/g, '');
-                }
+                alert('Respuesta raw de API para depurar: ' + content); // Añadido para que veas el raw content en alerta, copia y pega esto en el chat para depurar
+                // Limpieza adicional
+                content = content.replace(/```json|```/g, '').replace(/`/g, '').trim();
 
                 let parsedItems;
                 try {
                     parsedItems = JSON.parse(content).items || [];
                 } catch (err) {
-                    // Si falla, intenta encontrar el JSON dentro del content
+                    // Intenta encontrar JSON dentro
                     const jsonMatch = content.match(/\{[\s\S]*\}/);
                     if (jsonMatch) {
                         content = jsonMatch[0];
@@ -116,7 +109,7 @@
                         setStep(2);
                     } catch (error) {
                         console.error('Error detallado:', error);
-                        alert('Error al analizar con API: ' + error.message + '. Copia este mensaje y compártelo para depurar. Usando fallback Tesseract...');
+                        alert('Error al analizar con API: ' + error.message + '. Copia el mensaje de "Respuesta raw de API" de la alerta anterior y compártelo en el chat para depurar. Usando fallback Tesseract...');
                         await fallbackTesseract();
                     } finally {
                         setIsLoading(false);
@@ -233,7 +226,7 @@
                                 {isLoading ? 'Analizando...' : 'Analizar Ticket'}
                             </button>
                             {isLoading && <div className="loading"><div className="spinner-border text-primary" role="status"><span className="visually-hidden">Cargando...</span></div><p>Procesando la imagen, puede tomar unos segundos...</p></div>}
-                            <p className="text-muted mt-2">Si ocurre un error, copia el mensaje de alerta completo (incluyendo la respuesta no válida) y compártelo para depurar. En móvil, puedes mantener presionado para copiar el texto del alerta.</p>
+                            <p className="text-muted mt-2">Si ocurre un error, copia el mensaje de alerta completo (incluyendo la respuesta raw si aparece) y compártelo para depurar. En móvil, puedes mantener presionado el alerta para copiar el texto.</p>
                         </div>
                     )}
 
