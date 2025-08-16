@@ -3,177 +3,201 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Divisor de Cuentas</title>
+    <title>Divisor de Cuentas - App Mejorada</title>
     <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
+    <script src="https://unpkg.com/react@18/umd/react.development.js"></script>
+    <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
+    <script src="https://unpkg.com/babel-standalone@6/babel.min.js"></script>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/css/bootstrap.min.css" rel="stylesheet">
     <style>
-        body { font-family: Arial, sans-serif; margin: 20px; }
-        #upload-section, #analysis-section, #people-section, #checklists-section, #results-section { margin-bottom: 20px; }
-        button { padding: 10px; margin-top: 10px; }
-        .person-checklist { border: 1px solid #ccc; padding: 10px; margin: 10px 0; }
+        body { background-color: #f8f9fa; padding: 20px; }
+        .app-container { max-width: 800px; margin: auto; background: white; padding: 20px; border-radius: 10px; box-shadow: 0 0 10px rgba(0,0,0,0.1); }
+        .step-header { text-align: center; margin-bottom: 20px; }
+        .item-list { list-style: none; padding: 0; }
+        .item-list li { background: #e9ecef; margin: 5px 0; padding: 10px; border-radius: 5px; }
+        .person-checklist { background: #f8f9fa; padding: 15px; border-radius: 10px; margin-bottom: 15px; }
+        .person-checklist label { display: block; margin-bottom: 5px; }
+        .results-list li { font-size: 1.2em; font-weight: bold; color: #198754; }
     </style>
 </head>
 <body>
-    <h1>Divisor de Cuentas para Comidas en Grupo</h1>
+    <div id="root"></div>
 
-    <div id="upload-section">
-        <h2>Paso 1: Sube la imagen del ticket</h2>
-        <input type="file" id="ticket-image" accept="image/*">
-        <button onclick="analyzeTicket()">Analizar Ticket</button>
-    </div>
+    <script type="text/babel">
+        const { useState, useEffect } = React;
 
-    <div id="analysis-section" style="display: none;">
-        <h2>Productos Analizados</h2>
-        <ul id="items-list"></ul>
-        <button onclick="proceedToPeople()">Continuar</button>
-    </div>
+        function App() {
+            const [step, setStep] = useState(1);
+            const [imageFile, setImageFile] = useState(null);
+            const [items, setItems] = useState([]);
+            const [numPeople, setNumPeople] = useState(2);
+            const [assignments, setAssignments] = useState({});
+            const [payments, setPayments] = useState([]);
 
-    <div id="people-section" style="display: none;">
-        <h2>Paso 2: ¿Cuántas personas han comido?</h2>
-        <input type="number" id="num-people" min="1" value="2">
-        <button onclick="generateChecklists()">Generar Checklists</button>
-    </div>
+            const handleImageChange = (e) => {
+                setImageFile(e.target.files[0]);
+            };
 
-    <div id="checklists-section" style="display: none;">
-        <h2>Paso 3: Selecciona los productos para cada persona</h2>
-        <div id="checklists"></div>
-        <button onclick="calculatePayments()">Calcular Pagos</button>
-    </div>
-
-    <div id="results-section" style="display: none;">
-        <h2>Resultados</h2>
-        <ul id="payments-list"></ul>
-    </div>
-
-    <script>
-        let items = []; // Array de {name: string, price: number}
-
-        async function analyzeTicket() {
-            const fileInput = document.getElementById('ticket-image');
-            if (!fileInput.files.length) {
-                alert('Por favor, sube una imagen del ticket.');
-                return;
-            }
-
-            const image = fileInput.files[0];
-            const worker = await Tesseract.createWorker('eng+spa'); // Soporte para inglés y español
-            const { data: { text } } = await worker.recognize(image);
-            await worker.terminate();
-
-            // Parsear el texto del ticket (simplificado: asume líneas como "Item - $10.00" o similar)
-            const lines = text.split('\n').filter(line => line.trim());
-            items = [];
-            lines.forEach(line => {
-                const match = line.match(/(.+?)\s+[\d.,]+\s*(\d+\.?\d*)/); // Busca nombre y precio al final
-                if (match) {
-                    const name = match[1].trim();
-                    const price = parseFloat(match[2].replace(',', '.'));
-                    if (!isNaN(price)) {
-                        items.push({ name, price });
-                    }
+            const analyzeTicket = async () => {
+                if (!imageFile) {
+                    alert('Por favor, sube una imagen del ticket.');
+                    return;
                 }
-            });
 
-            if (items.length === 0) {
-                alert('No se pudieron extraer productos del ticket. Intenta con una imagen más clara.');
-                return;
-            }
+                const worker = await Tesseract.createWorker('eng+spa');
+                const { data: { text } } = await worker.recognize(imageFile);
+                await worker.terminate();
 
-            // Mostrar items
-            const list = document.getElementById('items-list');
-            list.innerHTML = '';
-            items.forEach(item => {
-                const li = document.createElement('li');
-                li.textContent = `${item.name}: ${item.price.toFixed(2)} €`;
-                list.appendChild(li);
-            });
-
-            document.getElementById('upload-section').style.display = 'none';
-            document.getElementById('analysis-section').style.display = 'block';
-        }
-
-        function proceedToPeople() {
-            document.getElementById('analysis-section').style.display = 'none';
-            document.getElementById('people-section').style.display = 'block';
-        }
-
-        function generateChecklists() {
-            const numPeople = parseInt(document.getElementById('num-people').value);
-            if (isNaN(numPeople) || numPeople < 1) {
-                alert('Ingresa un número válido de personas.');
-                return;
-            }
-
-            const checklistsDiv = document.getElementById('checklists');
-            checklistsDiv.innerHTML = '';
-
-            for (let i = 1; i <= numPeople; i++) {
-                const personDiv = document.createElement('div');
-                personDiv.className = 'person-checklist';
-                personDiv.innerHTML = `<h3>Persona ${i}</h3>`;
-
-                items.forEach((item, index) => {
-                    const label = document.createElement('label');
-                    const checkbox = document.createElement('input');
-                    checkbox.type = 'checkbox';
-                    checkbox.dataset.person = i;
-                    checkbox.dataset.item = index;
-                    label.appendChild(checkbox);
-                    label.appendChild(document.createTextNode(` ${item.name} (${item.price.toFixed(2)} €)`));
-                    personDiv.appendChild(label);
-                    personDiv.appendChild(document.createElement('br'));
+                const lines = text.split('\n').filter(line => line.trim());
+                const parsedItems = [];
+                lines.forEach(line => {
+                    const match = line.match(/(.+?)\s+[\d.,]+\s*(\d+\.?\d*)/);
+                    if (match) {
+                        const name = match[1].trim();
+                        const price = parseFloat(match[2].replace(',', '.'));
+                        if (!isNaN(price)) {
+                            parsedItems.push({ name, price });
+                        }
+                    }
                 });
 
-                checklistsDiv.appendChild(personDiv);
-            }
-
-            document.getElementById('people-section').style.display = 'none';
-            document.getElementById('checklists-section').style.display = 'block';
-        }
-
-        function calculatePayments() {
-            const numPeople = document.querySelectorAll('.person-checklist').length;
-            const payments = Array(numPeople).fill(0);
-
-            // Mapa de cuántas personas reclamaron cada item
-            const itemClaims = items.map(() => 0);
-
-            // Contar claims
-            document.querySelectorAll('input[type="checkbox"]:checked').forEach(checkbox => {
-                const person = parseInt(checkbox.dataset.person) - 1;
-                const itemIndex = parseInt(checkbox.dataset.item);
-                itemClaims[itemIndex]++;
-            });
-
-            // Calcular pagos
-            items.forEach((item, index) => {
-                if (itemClaims[index] > 0) {
-                    const share = item.price / itemClaims[index];
-                    document.querySelectorAll(`input[data-item="${index}"]:checked`).forEach(checkbox => {
-                        const person = parseInt(checkbox.dataset.person) - 1;
-                        payments[person] += share;
-                    });
+                if (parsedItems.length === 0) {
+                    alert('No se pudieron extraer productos. Intenta con una imagen más clara.');
+                    return;
                 }
-            });
 
-            // Verificar si todos los items fueron reclamados
-            const unclaimed = itemClaims.filter(count => count === 0).length;
-            if (unclaimed > 0) {
-                alert(`${unclaimed} productos no fueron reclamados por nadie. Asegúrate de distribuir todos.`);
-                return;
-            }
+                setItems(parsedItems);
+                setStep(2);
+            };
 
-            // Mostrar resultados
-            const list = document.getElementById('payments-list');
-            list.innerHTML = '';
-            payments.forEach((amount, index) => {
-                const li = document.createElement('li');
-                li.textContent = `Persona ${index + 1}: ${amount.toFixed(2)} €`;
-                list.appendChild(li);
-            });
+            const proceedToPeople = () => {
+                setStep(3);
+            };
 
-            document.getElementById('checklists-section').style.display = 'none';
-            document.getElementById('results-section').style.display = 'block';
+            const generateChecklists = () => {
+                const newAssignments = {};
+                for (let i = 1; i <= numPeople; i++) {
+                    newAssignments[i] = Array(items.length).fill(false);
+                }
+                setAssignments(newAssignments);
+                setStep(4);
+            };
+
+            const toggleCheckbox = (person, itemIndex) => {
+                setAssignments(prev => ({
+                    ...prev,
+                    [person]: prev[person].map((checked, idx) => idx === itemIndex ? !checked : checked)
+                }));
+            };
+
+            const calculatePayments = () => {
+                const itemClaims = items.map(() => 0);
+                Object.values(assignments).forEach(personChecks => {
+                    personChecks.forEach((checked, idx) => {
+                        if (checked) itemClaims[idx]++;
+                    });
+                });
+
+                const unclaimed = itemClaims.filter(count => count === 0).length;
+                if (unclaimed > 0) {
+                    alert(`${unclaimed} productos no fueron reclamados. Distribuye todos.`);
+                    return;
+                }
+
+                const newPayments = Array(numPeople).fill(0);
+                items.forEach((item, idx) => {
+                    if (itemClaims[idx] > 0) {
+                        const share = item.price / itemClaims[idx];
+                        Object.keys(assignments).forEach(person => {
+                            if (assignments[person][idx]) {
+                                newPayments[parseInt(person) - 1] += share;
+                            }
+                        });
+                    }
+                });
+
+                setPayments(newPayments);
+                setStep(5);
+            };
+
+            return (
+                <div className="app-container">
+                    <h1 className="step-header">Divisor de Cuentas para Comidas en Grupo</h1>
+
+                    {step === 1 && (
+                        <div>
+                            <h2 className="step-header">Paso 1: Sube la imagen del ticket</h2>
+                            <input type="file" accept="image/*" onChange={handleImageChange} className="form-control mb-3" />
+                            <button onClick={analyzeTicket} className="btn btn-primary w-100">Analizar Ticket</button>
+                        </div>
+                    )}
+
+                    {step === 2 && (
+                        <div>
+                            <h2 className="step-header">Productos Analizados</h2>
+                            <ul className="item-list">
+                                {items.map((item, idx) => (
+                                    <li key={idx}>{item.name}: {item.price.toFixed(2)} €</li>
+                                ))}
+                            </ul>
+                            <button onClick={proceedToPeople} className="btn btn-primary w-100">Continuar</button>
+                        </div>
+                    )}
+
+                    {step === 3 && (
+                        <div>
+                            <h2 className="step-header">Paso 2: ¿Cuántas personas han comido?</h2>
+                            <input
+                                type="number"
+                                min="1"
+                                value={numPeople}
+                                onChange={(e) => setNumPeople(parseInt(e.target.value))}
+                                className="form-control mb-3"
+                            />
+                            <button onClick={generateChecklists} className="btn btn-primary w-100">Generar Checklists</button>
+                        </div>
+                    )}
+
+                    {step === 4 && (
+                        <div>
+                            <h2 className="step-header">Paso 3: Selecciona los productos para cada persona</h2>
+                            {Array.from({ length: numPeople }).map((_, i) => {
+                                const person = i + 1;
+                                return (
+                                    <div key={person} className="person-checklist">
+                                        <h3>Persona {person}</h3>
+                                        {items.map((item, idx) => (
+                                            <label key={idx}>
+                                                <input
+                                                    type="checkbox"
+                                                    checked={assignments[person]?.[idx] || false}
+                                                    onChange={() => toggleCheckbox(person, idx)}
+                                                />
+                                                {` ${item.name} (${item.price.toFixed(2)} €)`}
+                                            </label>
+                                        ))}
+                                    </div>
+                                );
+                            })}
+                            <button onClick={calculatePayments} className="btn btn-success w-100">Calcular Pagos</button>
+                        </div>
+                    )}
+
+                    {step === 5 && (
+                        <div>
+                            <h2 className="step-header">Resultados</h2>
+                            <ul className="results-list">
+                                {payments.map((amount, idx) => (
+                                    <li key={idx}>Persona {idx + 1}: {amount.toFixed(2)} €</li>
+                                ))}
+                            </ul>
+                        </div>
+                    )}
+                </div>
+            );
         }
+
+        ReactDOM.render(<App />, document.getElementById('root'));
     </script>
 </body>
 </html>
