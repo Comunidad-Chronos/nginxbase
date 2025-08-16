@@ -53,7 +53,7 @@
     .save-export-container {
       width: 100%;
       display: flex;
-      justify-content: space-between; /* Exportar a la izquierda, Guardar a la derecha */
+      justify-content: space-between; /* Guardar a la izquierda, Exportar a la derecha */
       gap: 10px;
       margin-top: 10px;
     }
@@ -151,8 +151,8 @@
       <button type="button" onclick="addRegistro('Comida', 0, 0)">Comida</button>
     </div>
     <div class="save-export-container">
-      <button id="exportBtn" onclick="exportToExcel()">Exportar Excel</button>
       <button id="saveBtn" type="button" onclick="addRegistro(document.getElementById('observaciones').value, 0, 0)">Guardar Motivo Personalizado</button>
+      <button id="exportBtn" onclick="exportToExcel()">Exportar Excel</button>
     </div>
   </form>
   <table>
