@@ -1,439 +1,179 @@
 <!DOCTYPE html>
-<html>
+<html lang="es">
 <head>
-  <meta charset="UTF-8">
-  <title>Registro de Paradas</title>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
-  <style>
-    body {
-      font-family: Arial, sans-serif;
-      max-width: 800px;
-      margin: 20px auto;
-      background-color: #f4f4f9;
-      color: #333;
-    }
-    h2 {
-      text-align: center;
-      color: #2c3e50;
-    }
-    form {
-      display: flex;
-      flex-wrap: wrap;
-      gap: 10px;
-      background-color: #fff;
-      padding: 20px;
-      border-radius: 8px;
-      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
-      justify-content: space-between; /* Distribuye los contenedores */
-    }
-    input[type="text"], input[type="number"] {
-      flex: 1;
-      padding: 10px;
-      border: 1px solid #ccc;
-      border-radius: 4px;
-      font-size: 16px;
-      width: 100%; /* Asegura que ocupe el espacio completo en móviles */
-    }
-    .input-container {
-      width: 45%; /* Mitad izquierda para inputs */
-      padding-right: 5px;
-    }
-    .button-container {
-      width: 45%; /* Mitad derecha para botones predefinidos */
-      display: flex;
-      flex-direction: column;
-      align-items: flex-end; /* Alinea los botones a la derecha */
-      gap: 10px;
-    }
-    .button-container button {
-      width: auto; /* Botones solo toman el ancho necesario */
-      min-width: 120px; /* Ancho mínimo para consistencia */
-      padding: 10px 20px; /* Padding más compacto */
-    }
-    .save-export-container {
-      width: 100%;
-      display: flex;
-      justify-content: space-between; /* Guardar a la izquierda, Exportar a la derecha */
-      gap: 10px;
-      margin-top: 10px;
-    }
-    button {
-      padding: 15px 30px; /* Para botones de guardar/exportar */
-      border: none;
-      border-radius: 8px;
-      color: white;
-      cursor: pointer;
-      font-size: 16px;
-      transition: background-color 0.2s;
-    }
-    button:hover {
-      background-color: #2980b9;
-    }
-    button[type="button"] {
-      background-color: #7f8c8d;
-    }
-    button[type="button"]:hover {
-      background-color: #6d7273;
-    }
-    #saveBtn {
-      background-color: #2ecc71; /* Verde para Guardar */
-    }
-    #saveBtn:hover {
-      background-color: #27ae60;
-    }
-    #exportBtn {
-      background-color: #34495e; /* Color neutro gris azulado */
-    }
-    #exportBtn:hover {
-      background-color: #2c3e50;
-    }
-    .deleteRowBtn {
-      background-color: #e74c3c;
-      padding: 8px;
-      font-size: 14px;
-    }
-    .deleteRowBtn:hover {
-      background-color: #c0392b;
-    }
-    table {
-      width: 100%;
-      border-collapse: collapse;
-      margin-top: 20px;
-      background-color: #fff;
-      border-radius: 8px;
-      overflow: hidden;
-      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
-    }
-    th, td {
-      padding: 12px;
-      text-align: left;
-      border-bottom: 1px solid #ddd;
-    }
-    th {
-      background-color: #3498db;
-      color: white;
-    }
-    tr:nth-child(even) {
-      background-color: #f9f9f9;
-    }
-    tr:hover {
-      background-color: #f1f1f1;
-    }
-    @media (max-width: 600px) {
-      .input-container, .button-container {
-        width: 100%; /* En móviles, apila todo */
-      }
-      .button-container {
-        align-items: flex-end; /* Alinea a la derecha en móviles */
-      }
-      .button-container button {
-        width: 100%; /* Botones ocupan todo el ancho en móviles */
-      }
-      .save-export-container {
-        flex-direction: column;
-        align-items: flex-start;
-      }
-    }
-
-    /* Estilos para el modal */
-    .modal {
-      display: none;
-      position: fixed;
-      z-index: 1;
-      left: 0;
-      top: 0;
-      width: 100%;
-      height: 100%;
-      overflow: auto;
-      background-color: rgba(0,0,0,0.4);
-      padding-top: 60px;
-    }
-    .modal-content {
-      background-color: #fefefe;
-      margin: 5% auto;
-      padding: 20px;
-      border: 1px solid #888;
-      width: 80%;
-      max-width: 400px;
-      border-radius: 8px;
-    }
-    .close {
-      color: #aaa;
-      float: right;
-      font-size: 28px;
-      font-weight: bold;
-    }
-    .close:hover,
-    .close:focus {
-      color: black;
-      text-decoration: none;
-      cursor: pointer;
-    }
-    .modal-input {
-      width: 100%;
-      padding: 10px;
-      margin-bottom: 10px;
-      border: 1px solid #ccc;
-      border-radius: 4px;
-    }
-    .modal-button {
-      background-color: #4CAF50;
-      color: white;
-      padding: 10px 20px;
-      border: none;
-      border-radius: 4px;
-      cursor: pointer;
-    }
-    .modal-button:hover {
-      background-color: #45a049;
-    }
-  </style>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Divisor de Cuentas</title>
+    <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        #upload-section, #analysis-section, #people-section, #checklists-section, #results-section { margin-bottom: 20px; }
+        button { padding: 10px; margin-top: 10px; }
+        .person-checklist { border: 1px solid #ccc; padding: 10px; margin: 10px 0; }
+    </style>
 </head>
 <body>
-  <h2>Registro de Paradas / Repostajes</h2>
-  <form id="registroForm">
-    <div class="input-container">
-      <input type="number" id="precio" placeholder="Precio (ej. 4.37)" step="0.01" min="0">
-      <input type="text" id="observaciones" placeholder="Observaciones personalizadas">
+    <h1>Divisor de Cuentas para Comidas en Grupo</h1>
+
+    <div id="upload-section">
+        <h2>Paso 1: Sube la imagen del ticket</h2>
+        <input type="file" id="ticket-image" accept="image/*">
+        <button onclick="analyzeTicket()">Analizar Ticket</button>
     </div>
-    <div class="button-container">
-      <button type="button" onclick="addRegistro('Peaje', 0, 0)">Peaje</button>
-      <button type="button" onclick="showModal('litros')">Gasolina</button>
-      <button type="button" onclick="showModal('kilometros')">Kilómetros</button>
-      <button type="button" onclick="addRegistro('Hospedaje', 0, 0)">Hospedaje</button>
-      <button type="button" onclick="addRegistro('Comida', 0, 0)">Comida</button>
+
+    <div id="analysis-section" style="display: none;">
+        <h2>Productos Analizados</h2>
+        <ul id="items-list"></ul>
+        <button onclick="proceedToPeople()">Continuar</button>
     </div>
-    <div class="save-export-container">
-      <button id="saveBtn" type="button" onclick="addRegistro(document.getElementById('observaciones').value, 0, 0)">Guardar Motivo Personalizado</button>
-      <button id="exportBtn" onclick="exportToExcel()">Exportar Excel</button>
+
+    <div id="people-section" style="display: none;">
+        <h2>Paso 2: ¿Cuántas personas han comido?</h2>
+        <input type="number" id="num-people" min="1" value="2">
+        <button onclick="generateChecklists()">Generar Checklists</button>
     </div>
-  </form>
-  <table>
-    <thead>
-      <tr>
-        <th>Fecha y Hora</th>
-        <th>Precio</th>
-        <th>Litros</th>
-        <th>Kilómetros</th>
-        <th>Observaciones</th>
-        <th>Ubicación</th>
-        <th>Acción</th>
-      </tr>
-    </thead>
-    <tbody id="tablaDatos"></tbody>
-  </table>
 
-  <!-- Modal para inputs numéricos -->
-  <div id="numericModal" class="modal">
-    <div class="modal-content">
-      <span class="close" onclick="closeModal()">&times;</span>
-      <p id="modalTitle"></p>
-      <input type="number" id="modalInput" class="modal-input" step="0.01" min="0">
-      <button class="modal-button" id="modalSubmit">Aceptar</button>
+    <div id="checklists-section" style="display: none;">
+        <h2>Paso 3: Selecciona los productos para cada persona</h2>
+        <div id="checklists"></div>
+        <button onclick="calculatePayments()">Calcular Pagos</button>
     </div>
-  </div>
 
-  <script>
-    let currentType = ''; // 'litros' o 'kilometros'
+    <div id="results-section" style="display: none;">
+        <h2>Resultados</h2>
+        <ul id="payments-list"></ul>
+    </div>
 
-    function showModal(type) {
-      currentType = type;
-      const modal = document.getElementById('numericModal');
-      const title = document.getElementById('modalTitle');
-      title.textContent = type === 'litros' ? 'Introduce los litros de gasolina:' : 'Introduce los kilómetros:';
-      document.getElementById('modalInput').value = '';
-      modal.style.display = 'block';
+    <script>
+        let items = []; // Array de {name: string, price: number}
 
-      // Configurar el botón de submit
-      document.getElementById('modalSubmit').onclick = function() {
-        const value = parseFloat(document.getElementById('modalInput').value);
-        if (!isNaN(value) && value > 0) {
-          if (type === 'litros') {
-            addRegistro('Gasolina', value, 0);
-          } else if (type === 'kilometros') {
-            document.getElementById("precio").value = 0;
-            addRegistro('Kilómetros', 0, value);
-          }
-          closeModal();
-        } else {
-          alert(`Por favor, introduce un número válido de ${type}.`);
-        }
-      };
-    }
-
-    function closeModal() {
-      document.getElementById('numericModal').style.display = 'none';
-    }
-
-    // Cerrar modal si se hace clic fuera
-    window.onclick = function(event) {
-      const modal = document.getElementById('numericModal');
-      if (event.target === modal) {
-        closeModal();
-      }
-    };
-
-    function loadStoredData() {
-      const storedData = localStorage.getItem("registroParadas");
-      if (storedData) {
-        document.getElementById("tablaDatos").innerHTML = storedData;
-      }
-    }
-
-    function saveToStorage() {
-      const tableData = document.getElementById("tablaDatos").innerHTML;
-      localStorage.setItem("registroParadas", tableData);
-    }
-
-    async function addRegistro(observaciones, litros = 0, kilometros = 0) {
-      const precioInput = document.getElementById("precio");
-      const precio = precioInput.value;
-      if (!precio && precio !== 0 || !observaciones) {
-        alert("Por favor, completa el precio y las observaciones.");
-        return;
-      }
-
-      // Validar que el precio sea un número válido
-      const precioNum = parseFloat(precio);
-      if (isNaN(precioNum) || precioNum < 0) {
-        alert("Por favor, introduce un precio válido (ej. 4.37).");
-        return;
-      }
-
-      if (!navigator.geolocation) {
-        alert("Geolocalización no soportada");
-        return;
-      }
-
-      navigator.geolocation.getCurrentPosition(
-        async pos => {
-          const lat = pos.coords.latitude.toFixed(5);
-          const lon = pos.coords.longitude.toFixed(5);
-          let ubicacion = `lat:${lat},lon:${lon}`;
-          const fechaHora = new Date().toLocaleString("es-ES", {
-            day: "2-digit",
-            month: "2-digit",
-            year: "numeric",
-            hour: "2-digit",
-            minute: "2-digit",
-            second: "2-digit"
-          });
-
-          try {
-            const response = await fetch(`https://nominatim.openstreetmap.org/reverse?lat=${lat}&lon=${lon}&format=json`);
-            const data = await response.json();
-            if (data.display_name) {
-              ubicacion += ` (${data.display_name})`;
+        async function analyzeTicket() {
+            const fileInput = document.getElementById('ticket-image');
+            if (!fileInput.files.length) {
+                alert('Por favor, sube una imagen del ticket.');
+                return;
             }
-          } catch (err) {
-            console.error("Error al obtener dirección:", err);
-          }
 
-          const fila = `<tr><td>${fechaHora}</td><td>${precioNum.toFixed(2)}</td><td>${litros.toFixed(2)}</td><td>${kilometros.toFixed(2)}</td><td>${observaciones}</td><td>${ubicacion}</td><td><button class="deleteRowBtn" onclick="this.parentElement.parentElement.remove();saveToStorage()">Eliminar</button></td></tr>`;
-          document.getElementById("tablaDatos").innerHTML += fila;
+            const image = fileInput.files[0];
+            const worker = await Tesseract.createWorker('eng+spa'); // Soporte para inglés y español
+            const { data: { text } } = await worker.recognize(image);
+            await worker.terminate();
 
-          precioInput.value = "";
-          document.getElementById("observaciones").value = "";
-          saveToStorage();
-        },
-        err => {
-          alert("Error al obtener ubicación: " + err.message);
-        },
-        {
-          enableHighAccuracy: true,
-          timeout: 10000,
-          maximumAge: 0
-        }
-      );
-    }
+            // Parsear el texto del ticket (simplificado: asume líneas como "Item - $10.00" o similar)
+            const lines = text.split('\n').filter(line => line.trim());
+            items = [];
+            lines.forEach(line => {
+                const match = line.match(/(.+?)\s+[\d.,]+\s*(\d+\.?\d*)/); // Busca nombre y precio al final
+                if (match) {
+                    const name = match[1].trim();
+                    const price = parseFloat(match[2].replace(',', '.'));
+                    if (!isNaN(price)) {
+                        items.push({ name, price });
+                    }
+                }
+            });
 
-    function exportToExcel() {
-      // Verificar si XLSX está disponible
-      if (typeof XLSX === 'undefined') {
-        alert("Error: No se pudo cargar la librería de Excel. Por favor, verifica tu conexión a internet.");
-        return;
-      }
-
-      try {
-        const rows = document.querySelectorAll("#tablaDatos tr");
-        const data = [
-          ["Fecha y Hora", "Precio", "Litros", "Kilómetros", "Observaciones", "Ubicación"]
-        ];
-        rows.forEach(row => {
-          const cells = row.querySelectorAll("td:not(:last-child)");
-          const rowData = Array.from(cells).map((cell, index) => {
-            // Convertir columnas numéricas a número: Precio (1), Litros (2), Kilómetros (3)
-            if (index === 1 || index === 2 || index === 3) {
-              return parseFloat(cell.textContent) || 0;
+            if (items.length === 0) {
+                alert('No se pudieron extraer productos del ticket. Intenta con una imagen más clara.');
+                return;
             }
-            return cell.textContent;
-          });
-          data.push(rowData);
-        });
 
-        // Crear hoja de cálculo con formato numérico para columnas Precio, Litros, Kilómetros
-        const worksheet = XLSX.utils.aoa_to_sheet(data);
-        worksheet['!cols'] = [
-          { wch: 20 }, // Fecha y Hora
-          { wch: 10 }, // Precio
-          { wch: 10 }, // Litros
-          { wch: 10 }, // Kilómetros
-          { wch: 20 }, // Observaciones
-          { wch: 40 }  // Ubicación
-        ];
-        for (let i = 1; i < data.length; i++) {
-          ['B', 'C', 'D'].forEach(col => {
-            const cellRef = `${col}${i + 1}`; // Columnas B (Precio), C (Litros), D (Kilómetros)
-            if (worksheet[cellRef]) {
-              worksheet[cellRef].t = 'n'; // Tipo numérico
-              worksheet[cellRef].z = '0.00'; // Formato con 2 decimales
-            }
-          });
+            // Mostrar items
+            const list = document.getElementById('items-list');
+            list.innerHTML = '';
+            items.forEach(item => {
+                const li = document.createElement('li');
+                li.textContent = `${item.name}: ${item.price.toFixed(2)} €`;
+                list.appendChild(li);
+            });
+
+            document.getElementById('upload-section').style.display = 'none';
+            document.getElementById('analysis-section').style.display = 'block';
         }
 
-        const workbook = XLSX.utils.book_new();
-        XLSX.utils.book_append_sheet(workbook, worksheet, "Paradas");
+        function proceedToPeople() {
+            document.getElementById('analysis-section').style.display = 'none';
+            document.getElementById('people-section').style.display = 'block';
+        }
 
-        // Generar archivo binario
-        const excelBuffer = XLSX.write(workbook, { bookType: "xlsx", type: "array" });
-        const blob = new Blob([excelBuffer], { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" });
+        function generateChecklists() {
+            const numPeople = parseInt(document.getElementById('num-people').value);
+            if (isNaN(numPeople) || numPeople < 1) {
+                alert('Ingresa un número válido de personas.');
+                return;
+            }
 
-        // Crear enlace de descarga con nombre dinámico incluyendo fecha y hora en la zona horaria local del dispositivo
-        const now = new Date();
-        const options = {
-          year: 'numeric',
-          month: '2-digit',
-          day: '2-digit',
-          hour: '2-digit',
-          minute: '2-digit',
-          second: '2-digit',
-          hour12: false
-        };
-        const formatter = new Intl.DateTimeFormat('en-US', options);
-        const parts = formatter.formatToParts(now);
-        const dateParts = {
-          year: parts.find(p => p.type === 'year').value,
-          month: parts.find(p => p.type === 'month').value,
-          day: parts.find(p => p.type === 'day').value,
-          hour: parts.find(p => p.type === 'hour').value,
-          minute: parts.find(p => p.type === 'minute').value,
-          second: parts.find(p => p.type === 'second').value
-        };
-        const formattedDate = `${dateParts.year}-${dateParts.month}-${dateParts.day}_${dateParts.hour}-${dateParts.minute}-${dateParts.second}`;
-        const link = document.createElement("a");
-        link.href = URL.createObjectURL(blob);
-        link.download = `registro_paradas_${formattedDate}.xlsx`;
-        document.body.appendChild(link);
-        link.click();
-        document.body.removeChild(link);
-        URL.revokeObjectURL(link.href);
-      } catch (err) {
-        console.error("Error al exportar a Excel:", err);
-        alert("Error al generar el archivo Excel: " + err.message);
-      }
-    }
+            const checklistsDiv = document.getElementById('checklists');
+            checklistsDiv.innerHTML = '';
 
-    window.onload = loadStoredData;
-  </script>
+            for (let i = 1; i <= numPeople; i++) {
+                const personDiv = document.createElement('div');
+                personDiv.className = 'person-checklist';
+                personDiv.innerHTML = `<h3>Persona ${i}</h3>`;
+
+                items.forEach((item, index) => {
+                    const label = document.createElement('label');
+                    const checkbox = document.createElement('input');
+                    checkbox.type = 'checkbox';
+                    checkbox.dataset.person = i;
+                    checkbox.dataset.item = index;
+                    label.appendChild(checkbox);
+                    label.appendChild(document.createTextNode(` ${item.name} (${item.price.toFixed(2)} €)`));
+                    personDiv.appendChild(label);
+                    personDiv.appendChild(document.createElement('br'));
+                });
+
+                checklistsDiv.appendChild(personDiv);
+            }
+
+            document.getElementById('people-section').style.display = 'none';
+            document.getElementById('checklists-section').style.display = 'block';
+        }
+
+        function calculatePayments() {
+            const numPeople = document.querySelectorAll('.person-checklist').length;
+            const payments = Array(numPeople).fill(0);
+
+            // Mapa de cuántas personas reclamaron cada item
+            const itemClaims = items.map(() => 0);
+
+            // Contar claims
+            document.querySelectorAll('input[type="checkbox"]:checked').forEach(checkbox => {
+                const person = parseInt(checkbox.dataset.person) - 1;
+                const itemIndex = parseInt(checkbox.dataset.item);
+                itemClaims[itemIndex]++;
+            });
+
+            // Calcular pagos
+            items.forEach((item, index) => {
+                if (itemClaims[index] > 0) {
+                    const share = item.price / itemClaims[index];
+                    document.querySelectorAll(`input[data-item="${index}"]:checked`).forEach(checkbox => {
+                        const person = parseInt(checkbox.dataset.person) - 1;
+                        payments[person] += share;
+                    });
+                }
+            });
+
+            // Verificar si todos los items fueron reclamados
+            const unclaimed = itemClaims.filter(count => count === 0).length;
+            if (unclaimed > 0) {
+                alert(`${unclaimed} productos no fueron reclamados por nadie. Asegúrate de distribuir todos.`);
+                return;
+            }
+
+            // Mostrar resultados
+            const list = document.getElementById('payments-list');
+            list.innerHTML = '';
+            payments.forEach((amount, index) => {
+                const li = document.createElement('li');
+                li.textContent = `Persona ${index + 1}: ${amount.toFixed(2)} €`;
+                list.appendChild(li);
+            });
+
+            document.getElementById('checklists-section').style.display = 'none';
+            document.getElementById('results-section').style.display = 'block';
+        }
+    </script>
 </body>
 </html>
