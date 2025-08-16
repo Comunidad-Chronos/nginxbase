@@ -18,6 +18,7 @@
         .person-checklist { background: #f8f9fa; padding: 15px; border-radius: 10px; margin-bottom: 15px; }
         .person-checklist label { display: block; margin-bottom: 5px; }
         .results-list li { font-size: 1.2em; font-weight: bold; color: #198754; }
+        .loading { text-align: center; margin-top: 10px; }
     </style>
 </head>
 <body>
@@ -33,40 +34,36 @@
             const [numPeople, setNumPeople] = useState(2);
             const [assignments, setAssignments] = useState({});
             const [payments, setPayments] = useState([]);
-            const [apiKey, setApiKey] = useState('');
+            const [isLoading, setIsLoading] = useState(false);
+            const API_KEY = 'xai-qBwaOXyh84xbPyJ26YD63QhZscdpAdABKA9E8WDb3Da7xTKXLWM4UZa77XklKjozqddbkG2ylWk0iKgx'; // Hardcoded como pediste, pero no es seguro para GitHub
             const API_ENDPOINT = 'https://api.x.ai/v1/chat/completions';
+            const MODEL = 'grok-4-0709'; // Modelo actual con soporte para visión
 
             const handleImageChange = (e) => {
                 setImageFile(e.target.files[0]);
             };
 
-            const handleApiKeyChange = (e) => {
-                setApiKey(e.target.value);
-            };
-
             const analyzeWithAPI = async (base64Image) => {
-                if (!apiKey) {
-                    throw new Error('Ingresa tu API Key para usar Grok.');
-                }
                 const prompt = `Analiza esta imagen de ticket de compra. Extrae SOLO la sección de productos: para cada línea, identifica cantidad (si >1, divide en ítems individuales con precio unitario), nombre del producto y precio unitario. Ignora encabezados, totales, IVA, pagos y notas. Devuelve como JSON: { "items": [{ "name": "Producto", "price": 1.23 }, ...] }. Ej: Si "2x Cerveza 5.00" (total 5.00), divide en dos { "name": "Cerveza", "price": 2.50 }.`;
 
                 const response = await fetch(API_ENDPOINT, {
                     method: 'POST',
                     headers: {
-                        'Authorization': `Bearer ${apiKey}`,
+                        'Authorization': `Bearer ${API_KEY}`,
                         'Content-Type': 'application/json'
                     },
                     body: JSON.stringify({
-                        model: 'grok-4',
+                        model: MODEL,
                         messages: [
                             { role: 'user', content: [{ type: 'text', text: prompt }, { type: 'image_url', image_url: { url: `data:image/jpeg;base64,${base64Image}` } }] }
                         ],
-                        max_tokens: 1000
+                        max_tokens: 1000,
+                        temperature: 0.5
                     })
                 });
 
                 if (!response.ok) {
-                    throw new Error(`Error en API: ${response.statusText}`);
+                    throw new Error(`Error en API: ${response.statusText} - Verifica tu clave y suscripción en https://x.ai/api`);
                 }
 
                 const data = await response.json();
@@ -75,7 +72,7 @@
                 try {
                     parsedItems = JSON.parse(content).items || [];
                 } catch (err) {
-                    throw new Error('Respuesta de API no es JSON válido.');
+                    throw new Error('Respuesta de API no es JSON válido: ' + content);
                 }
 
                 if (parsedItems.length === 0) {
@@ -89,11 +86,8 @@
                     alert('Sube una imagen.');
                     return;
                 }
-                if (!apiKey) {
-                    alert('Ingresa tu API Key.');
-                    return;
-                }
 
+                setIsLoading(true);
                 const reader = new FileReader();
                 reader.onload = async (e) => {
                     const base64 = e.target.result.split(',')[1];
@@ -104,7 +98,9 @@
                     } catch (error) {
                         console.error(error);
                         alert('Error con API: ' + error.message + '. Usando fallback Tesseract...');
-                        fallbackTesseract();
+                        await fallbackTesseract();
+                    } finally {
+                        setIsLoading(false);
                     }
                 };
                 reader.readAsDataURL(imageFile);
@@ -212,16 +208,13 @@
 
                     {step === 1 && (
                         <div>
-                            <h2 className="step-header">Paso 1: Configura y sube el ticket</h2>
-                            <input 
-                                type="text" 
-                                placeholder="Ingresa tu API Key de xAI aquí" 
-                                value={apiKey} 
-                                onChange={handleApiKeyChange} 
-                                className="form-control mb-3" 
-                            />
+                            <h2 className="step-header">Paso 1: Sube el ticket</h2>
                             <input type="file" accept="image/*" onChange={handleImageChange} className="form-control mb-3" />
-                            <button onClick={analyzeTicket} className="btn btn-primary w-100">Analizar con Grok API</button>
+                            <button onClick={analyzeTicket} className="btn btn-primary w-100" disabled={isLoading}>
+                                {isLoading ? 'Analizando...' : 'Analizar con Grok API'}
+                            </button>
+                            {isLoading && <div className="loading"><div className="spinner-border text-primary" role="status"><span className="visually-hidden">Cargando...</span></div><p>La IA está procesando la imagen, espera un momento...</p></div>}
+                            <p className="text-muted mt-2">Si hay error, verifica tu suscripción en <a href="https://x.ai/api" target="_blank">https://x.ai/api</a>.</p>
                         </div>
                     )}
 
