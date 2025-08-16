@@ -1,0 +1,439 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>Registro de Paradas</title>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      max-width: 800px;
+      margin: 20px auto;
+      background-color: #f4f4f9;
+      color: #333;
+    }
+    h2 {
+      text-align: center;
+      color: #2c3e50;
+    }
+    form {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      background-color: #fff;
+      padding: 20px;
+      border-radius: 8px;
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+      justify-content: space-between; /* Distribuye los contenedores */
+    }
+    input[type="text"], input[type="number"] {
+      flex: 1;
+      padding: 10px;
+      border: 1px solid #ccc;
+      border-radius: 4px;
+      font-size: 16px;
+      width: 100%; /* Asegura que ocupe el espacio completo en móviles */
+    }
+    .input-container {
+      width: 45%; /* Mitad izquierda para inputs */
+      padding-right: 5px;
+    }
+    .button-container {
+      width: 45%; /* Mitad derecha para botones predefinidos */
+      display: flex;
+      flex-direction: column;
+      align-items: flex-end; /* Alinea los botones a la derecha */
+      gap: 10px;
+    }
+    .button-container button {
+      width: auto; /* Botones solo toman el ancho necesario */
+      min-width: 120px; /* Ancho mínimo para consistencia */
+      padding: 10px 20px; /* Padding más compacto */
+    }
+    .save-export-container {
+      width: 100%;
+      display: flex;
+      justify-content: space-between; /* Guardar a la izquierda, Exportar a la derecha */
+      gap: 10px;
+      margin-top: 10px;
+    }
+    button {
+      padding: 15px 30px; /* Para botones de guardar/exportar */
+      border: none;
+      border-radius: 8px;
+      color: white;
+      cursor: pointer;
+      font-size: 16px;
+      transition: background-color 0.2s;
+    }
+    button:hover {
+      background-color: #2980b9;
+    }
+    button[type="button"] {
+      background-color: #7f8c8d;
+    }
+    button[type="button"]:hover {
+      background-color: #6d7273;
+    }
+    #saveBtn {
+      background-color: #2ecc71; /* Verde para Guardar */
+    }
+    #saveBtn:hover {
+      background-color: #27ae60;
+    }
+    #exportBtn {
+      background-color: #34495e; /* Color neutro gris azulado */
+    }
+    #exportBtn:hover {
+      background-color: #2c3e50;
+    }
+    .deleteRowBtn {
+      background-color: #e74c3c;
+      padding: 8px;
+      font-size: 14px;
+    }
+    .deleteRowBtn:hover {
+      background-color: #c0392b;
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 20px;
+      background-color: #fff;
+      border-radius: 8px;
+      overflow: hidden;
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+    }
+    th, td {
+      padding: 12px;
+      text-align: left;
+      border-bottom: 1px solid #ddd;
+    }
+    th {
+      background-color: #3498db;
+      color: white;
+    }
+    tr:nth-child(even) {
+      background-color: #f9f9f9;
+    }
+    tr:hover {
+      background-color: #f1f1f1;
+    }
+    @media (max-width: 600px) {
+      .input-container, .button-container {
+        width: 100%; /* En móviles, apila todo */
+      }
+      .button-container {
+        align-items: flex-end; /* Alinea a la derecha en móviles */
+      }
+      .button-container button {
+        width: 100%; /* Botones ocupan todo el ancho en móviles */
+      }
+      .save-export-container {
+        flex-direction: column;
+        align-items: flex-start;
+      }
+    }
+
+    /* Estilos para el modal */
+    .modal {
+      display: none;
+      position: fixed;
+      z-index: 1;
+      left: 0;
+      top: 0;
+      width: 100%;
+      height: 100%;
+      overflow: auto;
+      background-color: rgba(0,0,0,0.4);
+      padding-top: 60px;
+    }
+    .modal-content {
+      background-color: #fefefe;
+      margin: 5% auto;
+      padding: 20px;
+      border: 1px solid #888;
+      width: 80%;
+      max-width: 400px;
+      border-radius: 8px;
+    }
+    .close {
+      color: #aaa;
+      float: right;
+      font-size: 28px;
+      font-weight: bold;
+    }
+    .close:hover,
+    .close:focus {
+      color: black;
+      text-decoration: none;
+      cursor: pointer;
+    }
+    .modal-input {
+      width: 100%;
+      padding: 10px;
+      margin-bottom: 10px;
+      border: 1px solid #ccc;
+      border-radius: 4px;
+    }
+    .modal-button {
+      background-color: #4CAF50;
+      color: white;
+      padding: 10px 20px;
+      border: none;
+      border-radius: 4px;
+      cursor: pointer;
+    }
+    .modal-button:hover {
+      background-color: #45a049;
+    }
+  </style>
+</head>
+<body>
+  <h2>Registro de Paradas / Repostajes</h2>
+  <form id="registroForm">
+    <div class="input-container">
+      <input type="number" id="precio" placeholder="Precio (ej. 4.37)" step="0.01" min="0">
+      <input type="text" id="observaciones" placeholder="Observaciones personalizadas">
+    </div>
+    <div class="button-container">
+      <button type="button" onclick="addRegistro('Peaje', 0, 0)">Peaje</button>
+      <button type="button" onclick="showModal('litros')">Gasolina</button>
+      <button type="button" onclick="showModal('kilometros')">Kilómetros</button>
+      <button type="button" onclick="addRegistro('Hospedaje', 0, 0)">Hospedaje</button>
+      <button type="button" onclick="addRegistro('Comida', 0, 0)">Comida</button>
+    </div>
+    <div class="save-export-container">
+      <button id="saveBtn" type="button" onclick="addRegistro(document.getElementById('observaciones').value, 0, 0)">Guardar Motivo Personalizado</button>
+      <button id="exportBtn" onclick="exportToExcel()">Exportar Excel</button>
+    </div>
+  </form>
+  <table>
+    <thead>
+      <tr>
+        <th>Fecha y Hora</th>
+        <th>Precio</th>
+        <th>Litros</th>
+        <th>Kilómetros</th>
+        <th>Observaciones</th>
+        <th>Ubicación</th>
+        <th>Acción</th>
+      </tr>
+    </thead>
+    <tbody id="tablaDatos"></tbody>
+  </table>
+
+  <!-- Modal para inputs numéricos -->
+  <div id="numericModal" class="modal">
+    <div class="modal-content">
+      <span class="close" onclick="closeModal()">&times;</span>
+      <p id="modalTitle"></p>
+      <input type="number" id="modalInput" class="modal-input" step="0.01" min="0">
+      <button class="modal-button" id="modalSubmit">Aceptar</button>
+    </div>
+  </div>
+
+  <script>
+    let currentType = ''; // 'litros' o 'kilometros'
+
+    function showModal(type) {
+      currentType = type;
+      const modal = document.getElementById('numericModal');
+      const title = document.getElementById('modalTitle');
+      title.textContent = type === 'litros' ? 'Introduce los litros de gasolina:' : 'Introduce los kilómetros:';
+      document.getElementById('modalInput').value = '';
+      modal.style.display = 'block';
+
+      // Configurar el botón de submit
+      document.getElementById('modalSubmit').onclick = function() {
+        const value = parseFloat(document.getElementById('modalInput').value);
+        if (!isNaN(value) && value > 0) {
+          if (type === 'litros') {
+            addRegistro('Gasolina', value, 0);
+          } else if (type === 'kilometros') {
+            document.getElementById("precio").value = 0;
+            addRegistro('Kilómetros', 0, value);
+          }
+          closeModal();
+        } else {
+          alert(`Por favor, introduce un número válido de ${type}.`);
+        }
+      };
+    }
+
+    function closeModal() {
+      document.getElementById('numericModal').style.display = 'none';
+    }
+
+    // Cerrar modal si se hace clic fuera
+    window.onclick = function(event) {
+      const modal = document.getElementById('numericModal');
+      if (event.target === modal) {
+        closeModal();
+      }
+    };
+
+    function loadStoredData() {
+      const storedData = localStorage.getItem("registroParadas");
+      if (storedData) {
+        document.getElementById("tablaDatos").innerHTML = storedData;
+      }
+    }
+
+    function saveToStorage() {
+      const tableData = document.getElementById("tablaDatos").innerHTML;
+      localStorage.setItem("registroParadas", tableData);
+    }
+
+    async function addRegistro(observaciones, litros = 0, kilometros = 0) {
+      const precioInput = document.getElementById("precio");
+      const precio = precioInput.value;
+      if (!precio && precio !== 0 || !observaciones) {
+        alert("Por favor, completa el precio y las observaciones.");
+        return;
+      }
+
+      // Validar que el precio sea un número válido
+      const precioNum = parseFloat(precio);
+      if (isNaN(precioNum) || precioNum < 0) {
+        alert("Por favor, introduce un precio válido (ej. 4.37).");
+        return;
+      }
+
+      if (!navigator.geolocation) {
+        alert("Geolocalización no soportada");
+        return;
+      }
+
+      navigator.geolocation.getCurrentPosition(
+        async pos => {
+          const lat = pos.coords.latitude.toFixed(5);
+          const lon = pos.coords.longitude.toFixed(5);
+          let ubicacion = `lat:${lat},lon:${lon}`;
+          const fechaHora = new Date().toLocaleString("es-ES", {
+            day: "2-digit",
+            month: "2-digit",
+            year: "numeric",
+            hour: "2-digit",
+            minute: "2-digit",
+            second: "2-digit"
+          });
+
+          try {
+            const response = await fetch(`https://nominatim.openstreetmap.org/reverse?lat=${lat}&lon=${lon}&format=json`);
+            const data = await response.json();
+            if (data.display_name) {
+              ubicacion += ` (${data.display_name})`;
+            }
+          } catch (err) {
+            console.error("Error al obtener dirección:", err);
+          }
+
+          const fila = `<tr><td>${fechaHora}</td><td>${precioNum.toFixed(2)}</td><td>${litros.toFixed(2)}</td><td>${kilometros.toFixed(2)}</td><td>${observaciones}</td><td>${ubicacion}</td><td><button class="deleteRowBtn" onclick="this.parentElement.parentElement.remove();saveToStorage()">Eliminar</button></td></tr>`;
+          document.getElementById("tablaDatos").innerHTML += fila;
+
+          precioInput.value = "";
+          document.getElementById("observaciones").value = "";
+          saveToStorage();
+        },
+        err => {
+          alert("Error al obtener ubicación: " + err.message);
+        },
+        {
+          enableHighAccuracy: true,
+          timeout: 10000,
+          maximumAge: 0
+        }
+      );
+    }
+
+    function exportToExcel() {
+      // Verificar si XLSX está disponible
+      if (typeof XLSX === 'undefined') {
+        alert("Error: No se pudo cargar la librería de Excel. Por favor, verifica tu conexión a internet.");
+        return;
+      }
+
+      try {
+        const rows = document.querySelectorAll("#tablaDatos tr");
+        const data = [
+          ["Fecha y Hora", "Precio", "Litros", "Kilómetros", "Observaciones", "Ubicación"]
+        ];
+        rows.forEach(row => {
+          const cells = row.querySelectorAll("td:not(:last-child)");
+          const rowData = Array.from(cells).map((cell, index) => {
+            // Convertir columnas numéricas a número: Precio (1), Litros (2), Kilómetros (3)
+            if (index === 1 || index === 2 || index === 3) {
+              return parseFloat(cell.textContent) || 0;
+            }
+            return cell.textContent;
+          });
+          data.push(rowData);
+        });
+
+        // Crear hoja de cálculo con formato numérico para columnas Precio, Litros, Kilómetros
+        const worksheet = XLSX.utils.aoa_to_sheet(data);
+        worksheet['!cols'] = [
+          { wch: 20 }, // Fecha y Hora
+          { wch: 10 }, // Precio
+          { wch: 10 }, // Litros
+          { wch: 10 }, // Kilómetros
+          { wch: 20 }, // Observaciones
+          { wch: 40 }  // Ubicación
+        ];
+        for (let i = 1; i < data.length; i++) {
+          ['B', 'C', 'D'].forEach(col => {
+            const cellRef = `${col}${i + 1}`; // Columnas B (Precio), C (Litros), D (Kilómetros)
+            if (worksheet[cellRef]) {
+              worksheet[cellRef].t = 'n'; // Tipo numérico
+              worksheet[cellRef].z = '0.00'; // Formato con 2 decimales
+            }
+          });
+        }
+
+        const workbook = XLSX.utils.book_new();
+        XLSX.utils.book_append_sheet(workbook, worksheet, "Paradas");
+
+        // Generar archivo binario
+        const excelBuffer = XLSX.write(workbook, { bookType: "xlsx", type: "array" });
+        const blob = new Blob([excelBuffer], { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" });
+
+        // Crear enlace de descarga con nombre dinámico incluyendo fecha y hora en la zona horaria local del dispositivo
+        const now = new Date();
+        const options = {
+          year: 'numeric',
+          month: '2-digit',
+          day: '2-digit',
+          hour: '2-digit',
+          minute: '2-digit',
+          second: '2-digit',
+          hour12: false
+        };
+        const formatter = new Intl.DateTimeFormat('en-US', options);
+        const parts = formatter.formatToParts(now);
+        const dateParts = {
+          year: parts.find(p => p.type === 'year').value,
+          month: parts.find(p => p.type === 'month').value,
+          day: parts.find(p => p.type === 'day').value,
+          hour: parts.find(p => p.type === 'hour').value,
+          minute: parts.find(p => p.type === 'minute').value,
+          second: parts.find(p => p.type === 'second').value
+        };
+        const formattedDate = `${dateParts.year}-${dateParts.month}-${dateParts.day}_${dateParts.hour}-${dateParts.minute}-${dateParts.second}`;
+        const link = document.createElement("a");
+        link.href = URL.createObjectURL(blob);
+        link.download = `registro_paradas_${formattedDate}.xlsx`;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        URL.revokeObjectURL(link.href);
+      } catch (err) {
+        console.error("Error al exportar a Excel:", err);
+        alert("Error al generar el archivo Excel: " + err.message);
+      }
+    }
+
+    window.onload = loadStoredData;
+  </script>
+</body>
+</html>
