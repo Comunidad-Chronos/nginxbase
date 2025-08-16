@@ -134,6 +134,59 @@
         align-items: flex-start;
       }
     }
+
+    /* Estilos para el modal */
+    .modal {
+      display: none;
+      position: fixed;
+      z-index: 1;
+      left: 0;
+      top: 0;
+      width: 100%;
+      height: 100%;
+      overflow: auto;
+      background-color: rgba(0,0,0,0.4);
+      padding-top: 60px;
+    }
+    .modal-content {
+      background-color: #fefefe;
+      margin: 5% auto;
+      padding: 20px;
+      border: 1px solid #888;
+      width: 80%;
+      max-width: 400px;
+      border-radius: 8px;
+    }
+    .close {
+      color: #aaa;
+      float: right;
+      font-size: 28px;
+      font-weight: bold;
+    }
+    .close:hover,
+    .close:focus {
+      color: black;
+      text-decoration: none;
+      cursor: pointer;
+    }
+    .modal-input {
+      width: 100%;
+      padding: 10px;
+      margin-bottom: 10px;
+      border: 1px solid #ccc;
+      border-radius: 4px;
+    }
+    .modal-button {
+      background-color: #4CAF50;
+      color: white;
+      padding: 10px 20px;
+      border: none;
+      border-radius: 4px;
+      cursor: pointer;
+    }
+    .modal-button:hover {
+      background-color: #45a049;
+    }
   </style>
 </head>
 <body>
@@ -145,8 +198,8 @@
     </div>
     <div class="button-container">
       <button type="button" onclick="addRegistro('Peaje', 0, 0)">Peaje</button>
-      <button type="button" onclick="promptLitros()">Gasolina</button>
-      <button type="button" onclick="promptKilometros()">Kilómetros</button>
+      <button type="button" onclick="showModal('litros')">Gasolina</button>
+      <button type="button" onclick="showModal('kilometros')">Kilómetros</button>
       <button type="button" onclick="addRegistro('Hospedaje', 0, 0)">Hospedaje</button>
       <button type="button" onclick="addRegistro('Comida', 0, 0)">Comida</button>
     </div>
@@ -170,7 +223,56 @@
     <tbody id="tablaDatos"></tbody>
   </table>
 
+  <!-- Modal para inputs numéricos -->
+  <div id="numericModal" class="modal">
+    <div class="modal-content">
+      <span class="close" onclick="closeModal()">&times;</span>
+      <p id="modalTitle"></p>
+      <input type="number" id="modalInput" class="modal-input" step="0.01" min="0">
+      <button class="modal-button" id="modalSubmit">Aceptar</button>
+    </div>
+  </div>
+
   <script>
+    let currentType = ''; // 'litros' o 'kilometros'
+
+    function showModal(type) {
+      currentType = type;
+      const modal = document.getElementById('numericModal');
+      const title = document.getElementById('modalTitle');
+      title.textContent = type === 'litros' ? 'Introduce los litros de gasolina:' : 'Introduce los kilómetros:';
+      document.getElementById('modalInput').value = '';
+      modal.style.display = 'block';
+
+      // Configurar el botón de submit
+      document.getElementById('modalSubmit').onclick = function() {
+        const value = parseFloat(document.getElementById('modalInput').value);
+        if (!isNaN(value) && value > 0) {
+          if (type === 'litros') {
+            addRegistro('Gasolina', value, 0);
+          } else if (type === 'kilometros') {
+            document.getElementById("precio").value = 0;
+            addRegistro('Kilómetros', 0, value);
+          }
+          closeModal();
+        } else {
+          alert(`Por favor, introduce un número válido de ${type}.`);
+        }
+      };
+    }
+
+    function closeModal() {
+      document.getElementById('numericModal').style.display = 'none';
+    }
+
+    // Cerrar modal si se hace clic fuera
+    window.onclick = function(event) {
+      const modal = document.getElementById('numericModal');
+      if (event.target === modal) {
+        closeModal();
+      }
+    };
+
     function loadStoredData() {
       const storedData = localStorage.getItem("registroParadas");
       if (storedData) {
@@ -243,25 +345,6 @@
           maximumAge: 0
         }
       );
-    }
-
-    function promptLitros() {
-      const litros = prompt("Introduce los litros de gasolina:");
-      if (litros !== null && !isNaN(litros) && litros.trim() !== "" && Number(litros) > 0) {
-        addRegistro('Gasolina', parseFloat(litros), 0);
-      } else if (litros !== null) {
-        alert("Por favor, introduce un número válido de litros.");
-      }
-    }
-
-    function promptKilometros() {
-      const km = prompt("Introduce los kilómetros:");
-      if (km !== null && !isNaN(km) && km.trim() !== "" && Number(km) > 0) {
-        document.getElementById("precio").value = 0;
-        addRegistro('Kilómetros', 0, parseFloat(km));
-      } else if (km !== null) {
-        alert("Por favor, introduce un número válido de kilómetros.");
-      }
     }
 
     function exportToExcel() {
