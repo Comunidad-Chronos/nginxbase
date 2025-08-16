@@ -3,8 +3,8 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Divisor de Cuentas - App Mejorada</title>
-    <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
+    <title>Divisor de Cuentas - Con API Grok</title>
+    <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script> <!-- Fallback si API falla -->
     <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
     <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
     <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
@@ -24,7 +24,7 @@
     <div id="root"></div>
 
     <script type="text/babel" data-type="module">
-        const { useState, useEffect } = React;
+        const { useState } = React;
 
         function App() {
             const [step, setStep] = useState(1);
@@ -33,38 +33,99 @@
             const [numPeople, setNumPeople] = useState(2);
             const [assignments, setAssignments] = useState({});
             const [payments, setPayments] = useState([]);
+            const API_KEY = 'xai-qBwaOXyh84xbPyJ26YD63QhZscdpAdABKA9E8WDb3Da7xTKXLWM4UZa77XklKjozqddbkG2ylWk0iKgx';
+            const API_ENDPOINT = 'https://api.x.ai/v1/chat/completions';
 
             const handleImageChange = (e) => {
                 setImageFile(e.target.files[0]);
             };
 
+            const analyzeWithAPI = async (base64Image) => {
+                const prompt = `Analiza esta imagen de ticket de compra. Extrae SOLO la sección de productos: para cada línea, identifica cantidad (si >1, divide en ítems individuales con precio unitario), nombre del producto y precio unitario. Ignora encabezados, totales, IVA, pagos y notas. Devuelve como JSON: { "items": [{ "name": "Producto", "price": 1.23 }, ...] }. Ej: Si "2x Cerveza 5.00" (total 5.00), divide en dos { "name": "Cerveza", "price": 2.50 }.`;
+
+                const response = await fetch(API_ENDPOINT, {
+                    method: 'POST',
+                    headers: {
+                        'Authorization': `Bearer ${API_KEY}`,
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        model: 'grok-beta',
+                        messages: [
+                            { role: 'user', content: [{ type: 'text', text: prompt }, { type: 'image_url', image_url: { url: `data:image/jpeg;base64,${base64Image}` } }] }
+                        ],
+                        max_tokens: 1000
+                    })
+                });
+
+                const data = await response.json();
+                const parsedItems = JSON.parse(data.choices[0].message.content).items || [];
+
+                if (parsedItems.length === 0) {
+                    throw new Error('No se extrajeron items con API.');
+                }
+                return parsedItems;
+            };
+
             const analyzeTicket = async () => {
                 if (!imageFile) {
-                    alert('Por favor, sube una imagen del ticket.');
+                    alert('Sube una imagen.');
                     return;
                 }
 
+                const reader = new FileReader();
+                reader.onload = async (e) => {
+                    const base64 = e.target.result.split(',')[1];
+                    try {
+                        const parsedItems = await analyzeWithAPI(base64);
+                        setItems(parsedItems);
+                        setStep(2);
+                    } catch (error) {
+                        console.error(error);
+                        alert('Error con API, usando fallback Tesseract...');
+                        fallbackTesseract();
+                    }
+                };
+                reader.readAsDataURL(imageFile);
+            };
+
+            const fallbackTesseract = async () => {
                 const worker = await Tesseract.createWorker('eng+spa');
                 const { data: { text } } = await worker.recognize(imageFile);
                 await worker.terminate();
 
-                const lines = text.split('\n').filter(line => line.trim());
+                const skipWords = ['total', 'subtotal', 'iva', 'tax', 'propina', 'gracias', 'efectivo', 'cambio'];
+                const lines = text.split('\n').filter(line => {
+                    const trimmed = line.trim();
+                    return trimmed && !skipWords.some(word => trimmed.toLowerCase().includes(word));
+                });
+
                 const parsedItems = [];
                 lines.forEach(line => {
-                    const match = line.match(/(.+?)\s+[\d.,]+\s*(\d+\.?\d*)/);
-                    if (match) {
-                        const name = match[1].trim();
-                        const price = parseFloat(match[2].replace(',', '.'));
-                        if (!isNaN(price)) {
+                    let qty = 1;
+                    let name = '';
+                    let price = 0;
+
+                    const qtyMatch = line.match(/^\s*(\d+)\s*x?\s*(.+?)\s*(\d+[.,]?\d*)\s*$/);
+                    if (qtyMatch) {
+                        qty = parseInt(qtyMatch[1]);
+                        name = qtyMatch[2].trim();
+                        const totalPrice = parseFloat(qtyMatch[3].replace(',', '.'));
+                        price = totalPrice / qty;
+                    } else {
+                        const noQtyMatch = line.match(/^\s*(.+?)\s*(\d+[.,]?\d*)\s*$/);
+                        if (noQtyMatch) {
+                            name = noQtyMatch[1].trim();
+                            price = parseFloat(noQtyMatch[2].replace(',', '.'));
+                        }
+                    }
+
+                    if (name && !isNaN(price)) {
+                        for (let i = 0; i < qty; i++) {
                             parsedItems.push({ name, price });
                         }
                     }
                 });
-
-                if (parsedItems.length === 0) {
-                    alert('No se pudieron extraer productos. Intenta con una imagen más clara.');
-                    return;
-                }
 
                 setItems(parsedItems);
                 setStep(2);
@@ -100,7 +161,7 @@
 
                 const unclaimed = itemClaims.filter(count => count === 0).length;
                 if (unclaimed > 0) {
-                    alert(`${unclaimed} productos no fueron reclamados. Distribuye todos.`);
+                    alert(`${unclaimed} productos no reclamados.`);
                     return;
                 }
 
@@ -122,19 +183,19 @@
 
             return (
                 <div className="app-container">
-                    <h1 className="step-header">Divisor de Cuentas para Comidas en Grupo</h1>
+                    <h1 className="step-header">Divisor de Cuentas con IA Grok</h1>
 
                     {step === 1 && (
                         <div>
-                            <h2 className="step-header">Paso 1: Sube la imagen del ticket</h2>
+                            <h2 className="step-header">Paso 1: Sube el ticket</h2>
                             <input type="file" accept="image/*" onChange={handleImageChange} className="form-control mb-3" />
-                            <button onClick={analyzeTicket} className="btn btn-primary w-100">Analizar Ticket</button>
+                            <button onClick={analyzeTicket} className="btn btn-primary w-100">Analizar con Grok API</button>
                         </div>
                     )}
 
                     {step === 2 && (
                         <div>
-                            <h2 className="step-header">Productos Analizados</h2>
+                            <h2 className="step-header">Productos Extraídos</h2>
                             <ul className="item-list">
                                 {items.map((item, idx) => (
                                     <li key={idx}>{item.name}: {item.price.toFixed(2)} €</li>
@@ -146,21 +207,15 @@
 
                     {step === 3 && (
                         <div>
-                            <h2 className="step-header">Paso 2: ¿Cuántas personas han comido?</h2>
-                            <input
-                                type="number"
-                                min="1"
-                                value={numPeople}
-                                onChange={(e) => setNumPeople(parseInt(e.target.value))}
-                                className="form-control mb-3"
-                            />
+                            <h2 className="step-header">Paso 2: ¿Cuántas personas?</h2>
+                            <input type="number" min="1" value={numPeople} onChange={(e) => setNumPeople(parseInt(e.target.value))} className="form-control mb-3" />
                             <button onClick={generateChecklists} className="btn btn-primary w-100">Generar Checklists</button>
                         </div>
                     )}
 
                     {step === 4 && (
                         <div>
-                            <h2 className="step-header">Paso 3: Selecciona los productos para cada persona</h2>
+                            <h2 className="step-header">Paso 3: Asigna productos</h2>
                             {Array.from({ length: numPeople }).map((_, i) => {
                                 const person = i + 1;
                                 return (
@@ -168,18 +223,14 @@
                                         <h3>Persona {person}</h3>
                                         {items.map((item, idx) => (
                                             <label key={idx}>
-                                                <input
-                                                    type="checkbox"
-                                                    checked={assignments[person]?.[idx] || false}
-                                                    onChange={() => toggleCheckbox(person, idx)}
-                                                />
+                                                <input type="checkbox" checked={assignments[person]?.[idx] || false} onChange={() => toggleCheckbox(person, idx)} />
                                                 {` ${item.name} (${item.price.toFixed(2)} €)`}
                                             </label>
                                         ))}
                                     </div>
                                 );
                             })}
-                            <button onClick={calculatePayments} className="btn btn-success w-100">Calcular Pagos</button>
+                            <button onClick={calculatePayments} className="btn btn-success w-100">Calcular</button>
                         </div>
                     )}
 
