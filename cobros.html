@@ -45,7 +45,7 @@
 
             const analyzeWithAPI = async (base64Image) => {
                 const apiKey = atob(encodedKey);
-                const prompt = `Analiza esta imagen de ticket de compra. Extrae SOLO la sección de productos: para cada línea, identifica cantidad (si >1, divide en ítems individuales con precio unitario), nombre del producto y precio unitario. Ignora encabezados, totales, IVA, pagos y notas. Tu respuesta debe ser SOLO un objeto JSON válido, sin texto adicional, sin bloques de código, sin explicaciones: { "items": [{ "name": "Producto", "price": 1.23 }, ...] }. Ejemplo: Si "2x Cerveza 5.00" (total 5.00), divide en dos { "name": "Cerveza", "price": 2.50 }.`;
+                const prompt = `You are a JSON-only responder. Analyze this receipt image and extract ONLY the product section: for each line, identify quantity (if >1, split into individual items with unit price), product name, and unit price. Ignore headers, totals, IVA, payments, and notes. Output ONLY a valid JSON object with no additional text, no code blocks, no explanations: { "items": [{ "name": "Product", "price": 1.23 }, ...] }. Example: For "2x Beer 5.00" (total 5.00), split into two { "name": "Beer", "price": 2.50 }.`;
 
                 const response = await fetch(API_ENDPOINT, {
                     method: 'POST',
@@ -59,7 +59,7 @@
                             { role: 'user', content: [{ type: 'text', text: prompt }, { type: 'image_url', image_url: { url: `data:image/jpeg;base64,${base64Image}` } }] }
                         ],
                         max_tokens: 1000,
-                        temperature: 0.1 // Bajado para más determinismo
+                        temperature: 0.0 // Muy bajo para forzar output determinista y estricto
                     })
                 });
 
@@ -68,15 +68,30 @@
                 }
 
                 const data = await response.json();
-                let content = data.choices[0].message.content;
-                // Limpia posibles bloques de código o texto extra
-                content = content.replace(/```json|```/g, '').replace(/`/g, '').trim();
+                let content = data.choices[0].message.content.trim();
+                // Limpieza adicional para remover cualquier cosa que no sea JSON
+                if (content.startsWith('```json')) {
+                    content = content.slice(7).trim();
+                }
+                if (content.endsWith('```')) {
+                    content = content.slice(0, -3).trim();
+                }
+                if (content.startsWith('`') || content.endsWith('`')) {
+                    content = content.replace(/`/g, '');
+                }
 
                 let parsedItems;
                 try {
                     parsedItems = JSON.parse(content).items || [];
                 } catch (err) {
-                    throw new Error('Respuesta no es JSON válido después de limpieza: ' + content);
+                    // Si falla, intenta encontrar el JSON dentro del content
+                    const jsonMatch = content.match(/\{[\s\S]*\}/);
+                    if (jsonMatch) {
+                        content = jsonMatch[0];
+                        parsedItems = JSON.parse(content).items || [];
+                    } else {
+                        throw new Error('Respuesta no es JSON válido después de limpieza: ' + content);
+                    }
                 }
 
                 if (parsedItems.length === 0) {
@@ -101,8 +116,7 @@
                         setStep(2);
                     } catch (error) {
                         console.error('Error detallado:', error);
-                        console.log('Respuesta cruda de API:', error.message);
-                        alert('Error al analizar con API: ' + error.message + '. Abre la consola del navegador (presiona F12 o Cmd+Option+J en Mac) para ver más detalles. Usando fallback Tesseract como alternativa...');
+                        alert('Error al analizar con API: ' + error.message + '. Copia este mensaje y compártelo para depurar. Usando fallback Tesseract...');
                         await fallbackTesseract();
                     } finally {
                         setIsLoading(false);
@@ -219,7 +233,7 @@
                                 {isLoading ? 'Analizando...' : 'Analizar Ticket'}
                             </button>
                             {isLoading && <div className="loading"><div className="spinner-border text-primary" role="status"><span className="visually-hidden">Cargando...</span></div><p>Procesando la imagen, puede tomar unos segundos...</p></div>}
-                            <p className="text-muted mt-2">Si ocurre un error, abre la consola del navegador (F12) para ver detalles y reportarlos. Asegúrate de que la imagen sea clara y el ticket esté bien enfocado.</p>
+                            <p className="text-muted mt-2">Si ocurre un error, copia el mensaje de alerta completo (incluyendo la respuesta no válida) y compártelo para depurar. En móvil, puedes mantener presionado para copiar el texto del alerta.</p>
                         </div>
                     )}
 
