@@ -33,24 +33,31 @@
             const [numPeople, setNumPeople] = useState(2);
             const [assignments, setAssignments] = useState({});
             const [payments, setPayments] = useState([]);
-            const API_KEY = 'xai-qBwaOXyh84xbPyJ26YD63QhZscdpAdABKA9E8WDb3Da7xTKXLWM4UZa77XklKjozqddbkG2ylWk0iKgx';
+            const [apiKey, setApiKey] = useState('');
             const API_ENDPOINT = 'https://api.x.ai/v1/chat/completions';
 
             const handleImageChange = (e) => {
                 setImageFile(e.target.files[0]);
             };
 
+            const handleApiKeyChange = (e) => {
+                setApiKey(e.target.value);
+            };
+
             const analyzeWithAPI = async (base64Image) => {
+                if (!apiKey) {
+                    throw new Error('Ingresa tu API Key para usar Grok.');
+                }
                 const prompt = `Analiza esta imagen de ticket de compra. Extrae SOLO la sección de productos: para cada línea, identifica cantidad (si >1, divide en ítems individuales con precio unitario), nombre del producto y precio unitario. Ignora encabezados, totales, IVA, pagos y notas. Devuelve como JSON: { "items": [{ "name": "Producto", "price": 1.23 }, ...] }. Ej: Si "2x Cerveza 5.00" (total 5.00), divide en dos { "name": "Cerveza", "price": 2.50 }.`;
 
                 const response = await fetch(API_ENDPOINT, {
                     method: 'POST',
                     headers: {
-                        'Authorization': `Bearer ${API_KEY}`,
+                        'Authorization': `Bearer ${apiKey}`,
                         'Content-Type': 'application/json'
                     },
                     body: JSON.stringify({
-                        model: 'grok-beta',
+                        model: 'grok-4',
                         messages: [
                             { role: 'user', content: [{ type: 'text', text: prompt }, { type: 'image_url', image_url: { url: `data:image/jpeg;base64,${base64Image}` } }] }
                         ],
@@ -58,8 +65,18 @@
                     })
                 });
 
+                if (!response.ok) {
+                    throw new Error(`Error en API: ${response.statusText}`);
+                }
+
                 const data = await response.json();
-                const parsedItems = JSON.parse(data.choices[0].message.content).items || [];
+                const content = data.choices[0].message.content;
+                let parsedItems;
+                try {
+                    parsedItems = JSON.parse(content).items || [];
+                } catch (err) {
+                    throw new Error('Respuesta de API no es JSON válido.');
+                }
 
                 if (parsedItems.length === 0) {
                     throw new Error('No se extrajeron items con API.');
@@ -72,6 +89,10 @@
                     alert('Sube una imagen.');
                     return;
                 }
+                if (!apiKey) {
+                    alert('Ingresa tu API Key.');
+                    return;
+                }
 
                 const reader = new FileReader();
                 reader.onload = async (e) => {
@@ -82,7 +103,7 @@
                         setStep(2);
                     } catch (error) {
                         console.error(error);
-                        alert('Error con API, usando fallback Tesseract...');
+                        alert('Error con API: ' + error.message + '. Usando fallback Tesseract...');
                         fallbackTesseract();
                     }
                 };
@@ -127,8 +148,12 @@
                     }
                 });
 
-                setItems(parsedItems);
-                setStep(2);
+                if (parsedItems.length > 0) {
+                    setItems(parsedItems);
+                    setStep(2);
+                } else {
+                    alert('No se extrajeron productos ni con fallback.');
+                }
             };
 
             const proceedToPeople = () => {
@@ -187,7 +212,14 @@
 
                     {step === 1 && (
                         <div>
-                            <h2 className="step-header">Paso 1: Sube el ticket</h2>
+                            <h2 className="step-header">Paso 1: Configura y sube el ticket</h2>
+                            <input 
+                                type="text" 
+                                placeholder="Ingresa tu API Key de xAI aquí" 
+                                value={apiKey} 
+                                onChange={handleApiKeyChange} 
+                                className="form-control mb-3" 
+                            />
                             <input type="file" accept="image/*" onChange={handleImageChange} className="form-control mb-3" />
                             <button onClick={analyzeTicket} className="btn btn-primary w-100">Analizar con Grok API</button>
                         </div>
