@@ -18,7 +18,7 @@
         .person-checklist { background: #f8f9fa; padding: 15px; border-radius: 10px; margin-bottom: 15px; }
         .person-checklist label { display: block; margin-bottom: 5px; }
         .results-list li { font-size: 1.2em; font-weight: bold; color: #198754; }
-        .loading { text-align: center; margin-top: 10px; }
+        .loading { text-align: center; margin-top: 20px; }
     </style>
 </head>
 <body>
@@ -51,24 +51,22 @@
                 const { data: { text } } = await worker.recognize(imageFile);
                 await worker.terminate();
 
-                const skipWords = ['total', 'subtotal', 'iva', 'tax', 'propina', 'gracias', 'efectivo', 'cambio', 'tarjeta', 'bancaria', 'importe', 'base', 'concepto', 'precio', 'c. concepto', 'l.v.a.', 'i.v.a.', 'imponible'];
+                const skipWords = ['total', 'subtotal', 'iva', 'tax', 'propina', 'gracias', 'efectivo', 'cambio', 'tarjeta', 'bancaria', 'importe', 'base', 'concepto', 'precio', 'c. concepto', 'l.v.a.', 'i.v.a.', 'imponible', 'descripción', 'p. unit', 'tari', 'n.c.', 'aut.', 'aid.', 'verificado', 'se admiten', 'no', '-', 'gf', 'steak', 'whipped'];
                 const lines = text.split('\n').filter(line => {
                     const trimmed = line.trim().toLowerCase();
-                    return trimmed && !skipWords.some(word => trimmed.includes(word));
+                    return trimmed && !skipWords.some(word => trimmed.startsWith(word) || trimmed.includes(word));
                 });
 
                 const parsedItems = [];
+                let currentName = '';
                 lines.forEach(line => {
-                    // Match para formatos con qty, name, unit price €, total € (ej: "1 OLIVAS 0,00 € 0,00 €")
-                    const fullMatch = line.match(/^\s*(\d+)\s*(.+?)\s*(\d+[.,]\d*)\s*€?\s*(\d+[.,]\d*)\s*€?\s*$/);
+                    // Match para qty (incluyendo fracciones como 1/2), name, unit price, total
+                    const fullMatch = line.match(/^\s*(\d+\/\d+|\d+)\s*(.+?)\s*(\d+[.,]\d*)\s*€?\s*(\d+[.,]\d*)\s*€?\s*$/);
                     if (fullMatch) {
-                        const qty = parseInt(fullMatch[1]);
+                        let qty = parseFloat(fullMatch[1].includes('/') ? eval(fullMatch[1]) : parseInt(fullMatch[1]));
                         const name = fullMatch[2].trim();
-                        const unitPriceStr = fullMatch[3].replace(',', '.');
-                        const totalStr = fullMatch[4].replace(',', '.');
-                        const unitPrice = parseFloat(unitPriceStr);
-                        const total = parseFloat(totalStr);
-                        // Verificar consistencia (total ≈ qty * unitPrice)
+                        const unitPrice = parseFloat(fullMatch[3].replace(',', '.'));
+                        const total = parseFloat(fullMatch[4].replace(',', '.'));
                         if (!isNaN(unitPrice) && !isNaN(total) && Math.abs(total - qty * unitPrice) < 0.01) {
                             for (let i = 0; i < qty; i++) {
                                 parsedItems.push({ name, price: unitPrice });
@@ -77,12 +75,12 @@
                         }
                     }
 
-                    // Match alternativo para qty, name, unit price (sin € o total)
-                    const qtyMatch = line.match(/^\s*(\d+)\s*x?\s*(.+?)\s*(\d+[.,]\d*)\s*$/);
-                    if (qtyMatch) {
-                        const qty = parseInt(qtyMatch[1]);
-                        const name = qtyMatch[2].trim();
-                        const totalPrice = parseFloat(qtyMatch[3].replace(',', '.'));
+                    // Match para qty, name, total (unit = total / qty)
+                    const qtyTotalMatch = line.match(/^\s*(\d+\/\d+|\d+)\s*(.+?)\s*(\d+[.,]\d*)\s*€?\s*$/);
+                    if (qtyTotalMatch) {
+                        let qty = parseFloat(qtyTotalMatch[1].includes('/') ? eval(qtyTotalMatch[1]) : parseInt(qtyTotalMatch[1]));
+                        const name = qtyTotalMatch[2].trim();
+                        const totalPrice = parseFloat(qtyTotalMatch[3].replace(',', '.'));
                         const price = totalPrice / qty;
                         if (!isNaN(price)) {
                             for (let i = 0; i < qty; i++) {
@@ -92,8 +90,8 @@
                         }
                     }
 
-                    // Match simple para name unit price (qty=1)
-                    const simpleMatch = line.match(/^\s*(.+?)\s*(\d+[.,]\d*)\s*$/);
+                    // Match simple para name price (qty=1)
+                    const simpleMatch = line.match(/^\s*(.+?)\s*(\d+[.,]\d*)\s*€?\s*$/);
                     if (simpleMatch) {
                         const name = simpleMatch[1].trim();
                         const price = parseFloat(simpleMatch[2].replace(',', '.'));
@@ -101,10 +99,20 @@
                             parsedItems.push({ name, price });
                         }
                     }
+
+                    // Si la línea no tiene precio, añadir como modificación al nombre anterior
+                    if (line.trim() && !line.match(/\d+[.,]\d*/)) {
+                        if (currentName) {
+                            currentName += ' ' + line.trim();
+                        }
+                    } else if (parsedItems.length > 0) {
+                        parsedItems[parsedItems.length - 1].name = currentName || parsedItems[parsedItems.length - 1].name;
+                        currentName = '';
+                    }
                 });
 
                 if (parsedItems.length === 0) {
-                    alert('No se pudieron extraer productos. Intenta con una imagen más clara, o asegúrate de que el ticket tenga líneas claras de productos (ej: "1 Producto 2,50 € 2,50 €"). Si el problema persiste, prueba girando la imagen o ajustando el contraste.');
+                    alert('No se pudieron extraer productos. Intenta con una imagen más clara, o asegúrate de que el ticket tenga líneas claras de productos (ej: "1 Producto 2.50 2.50"). Si el problema persiste, prueba girando la imagen o ajustando el contraste.');
                     setIsLoading(false);
                     return;
                 }
